@@ -109,9 +109,9 @@ function PontoItem({
   onPress: () => void;
 }) {
   return (
-    <TouchableOpacity style={styles.item} onPress={onPress}>
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <Text style={styles.nome}>{ponto.nome}</Text>
-      <Text style={styles.endereco}>{ponto.endereco}</Text>
+      <Text style={styles.endereco}>📍 {ponto.endereco}</Text>
     </TouchableOpacity>
   );
 }
@@ -120,10 +120,11 @@ export default function TelaListaPontos({ navigation }: Props) {
   return (
     <FlatList
       style={styles.container}
+      contentContainerStyle={styles.listContent}
       data={pontosMock}
       keyExtractor={(item) => item.id}
       ListHeaderComponent={
-        <Text style={styles.titulo}>Pontos de coleta / distribuição</Text>
+        <Text style={styles.titulo}>Pontos de Coleta / Distribuição</Text>
       }
       renderItem={({ item }) => (
         <PontoItem
@@ -138,29 +139,40 @@ export default function TelaListaPontos({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F5F7FA',
+  },
+  listContent: {
     padding: 20,
-    backgroundColor: '#FFFFFF',
   },
   titulo: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1B3A5C',
-    marginBottom: 16,
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#1A2B4C',
+    marginBottom: 20,
+    letterSpacing: 0.2,
   },
-  item: {
-    marginBottom: 16,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 18,
+    marginBottom: 14,
+    shadowColor: '#1A2B4C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#EFEFEF',
   },
   nome: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1B3A5C',
+    fontWeight: '700',
+    color: '#1A2B4C',
+    marginBottom: 6,
   },
   endereco: {
-    fontSize: 14,
-    color: '#666666',
-    marginTop: 4,
+    fontSize: 13,
+    color: '#5A6B82',
+    lineHeight: 18,
   },
 });

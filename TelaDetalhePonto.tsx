@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { pontosMock, type Ponto } from './TelaListaPontos';
 
@@ -11,15 +11,24 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Detalhe'>;
 
 function DetalhePonto({ ponto }: { ponto: Ponto }) {
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.nome}>{ponto.nome}</Text>
-      <Text style={styles.rotulo}>Endereço</Text>
-      <Text style={styles.texto}>{ponto.endereco}</Text>
-      <Text style={styles.rotulo}>Dias e horários</Text>
-      <Text style={styles.texto}>{ponto.diasHorarios}</Text>
-      <Text style={styles.rotulo}>Recebe / distribui</Text>
-      <Text style={styles.texto}>{ponto.recebeDistribui}</Text>
-    </View>
+
+      <View style={styles.cardInfo}>
+        <Text style={styles.rotulo}>📍 Endereço</Text>
+        <Text style={styles.texto}>{ponto.endereco}</Text>
+      </View>
+
+      <View style={styles.cardInfo}>
+        <Text style={styles.rotulo}>⏰ Dias e Horários</Text>
+        <Text style={styles.texto}>{ponto.diasHorarios}</Text>
+      </View>
+
+      <View style={styles.cardInfo}>
+        <Text style={styles.rotulo}>🤝 Recebe / Distribui</Text>
+        <Text style={styles.texto}>{ponto.recebeDistribui}</Text>
+      </View>
+    </ScrollView>
   );
 }
 
@@ -29,8 +38,8 @@ export default function TelaDetalhePonto({ route }: Props) {
 
   if (!ponto) {
     return (
-      <View style={styles.container}>
-        <Text>Ponto não encontrado.</Text>
+      <View style={styles.containerError}>
+        <Text style={styles.textoErro}>⚠️ Ponto não encontrado.</Text>
       </View>
     );
   }
@@ -41,24 +50,52 @@ export default function TelaDetalhePonto({ route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F5F7FA',
+  },
+  content: {
     padding: 20,
-    backgroundColor: '#FFFFFF',
+  },
+  containerError: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F5F7FA',
+  },
+  textoErro: {
+    fontSize: 16,
+    color: '#888888',
   },
   nome: {
     fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1B3A5C',
-    marginBottom: 16,
+    fontWeight: '800',
+    color: '#1A2B4C',
+    marginBottom: 20,
+    lineHeight: 30,
+  },
+  cardInfo: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#1A2B4C',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#EFEFEF',
   },
   rotulo: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#666666',
-    marginTop: 12,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#5A6B82',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 6,
   },
   texto: {
-    fontSize: 16,
-    color: '#333333',
-    marginTop: 4,
+    fontSize: 15,
+    color: '#2C3E50',
+    lineHeight: 22,
   },
 });
