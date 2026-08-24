@@ -66,6 +66,30 @@ export const pontosMock: Ponto[] = [
     recebeDistribui:
       'Recebe produtos de limpeza e higiene; distribui cestas às quintas.',
   },
+  {
+    id: '8',
+    nome: 'Ponto Renascença — Espaço Cultural Coletivo',
+    endereco: 'Rua do Giz, 400, Renascença, São Luís - MA, CEP 65075-230',
+    diasHorarios: 'Segunda a sexta, 8h–18h',
+    recebeDistribui:
+      'Recebe livros, agasalhos e cobertores; distribui kits de inverno às segundas.',
+  },
+  {
+    id: '9',
+    nome: 'Ponto Turu — Centro de Apoio Social',
+    endereco: 'Av. São Luís Rei de França, 55, Turu, São Luís - MA, CEP 65065-470',
+    diasHorarios: 'Quarta, sexta e sábado, 9h–15h',
+    recebeDistribui:
+      'Recebe brinquedos e material didático; distribui kits de leitura e lanches.',
+  },
+  {
+    id: '10',
+    nome: 'Ponto Maracanã — Cooperativa Rural',
+    endereco: 'Estrada da Maioba, 1020, Maracanã, São Luís - MA, CEP 65090-000',
+    diasHorarios: 'Quinta a domingo, 7h–13h',
+    recebeDistribui:
+      'Recebe cestas de produtores locais; distribui alimentos frescos para famílias da região.',
+  },
 ];
 
 type RootStackParamList = {
