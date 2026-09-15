@@ -1,4 +1,12 @@
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  FlatList,
+  type ViewStyle,
+} from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 export type Ponto = {
@@ -95,6 +103,7 @@ export const pontosMock: Ponto[] = [
 type RootStackParamList = {
   Lista: undefined;
   Detalhe: { pontoId: string };
+  Cadastro: undefined;
 };
 
 type Props = {
@@ -109,7 +118,16 @@ function PontoItem({
   onPress: () => void;
 }) {
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={onPress}
+      activeOpacity={0.75}
+      hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+      accessibilityRole="button"
+    >
+      <View style={styles.cardHeader}>
+        <Text style={styles.cardBadge}>Ativo</Text>
+      </View>
       <Text style={styles.nome}>{ponto.nome}</Text>
       <Text style={styles.endereco}>📍 {ponto.endereco}</Text>
     </TouchableOpacity>
@@ -118,51 +136,116 @@ function PontoItem({
 
 export default function TelaListaPontos({ navigation }: Props) {
   return (
-    <FlatList
-      style={styles.container}
-      contentContainerStyle={styles.listContent}
-      data={pontosMock}
-      keyExtractor={(item) => item.id}
-      ListHeaderComponent={
-        <Text style={styles.titulo}>Pontos de Coleta / Distribuição</Text>
-      }
-      renderItem={({ item }) => (
-        <PontoItem
-          ponto={item}
-          onPress={() => navigation.navigate('Detalhe', { pontoId: item.id })}
-        />
-      )}
-    />
+    <View style={styles.wrapper}>
+      <FlatList
+        style={styles.container}
+        contentContainerStyle={styles.listContent}
+        data={pontosMock}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={
+          <View style={styles.headerPanel}>
+            <Text style={styles.headerEyebrow}>Instituto Mão Amiga</Text>
+            <Text style={styles.titulo}>Pontos de coleta</Text>
+            <Text style={styles.subtitulo}>
+              {pontosMock.length} locais cadastrados
+            </Text>
+          </View>
+        }
+        renderItem={({ item }) => (
+          <PontoItem
+            ponto={item}
+            onPress={() =>
+              navigation.navigate('Detalhe', { pontoId: item.id })
+            }
+          />
+        )}
+      />
+
+      <TouchableOpacity
+        style={styles.buttonCadastro}
+        onPress={() => navigation.navigate('Cadastro')}
+        activeOpacity={0.9}
+      >
+        <Text style={styles.buttonText}>+ Registrar doação</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    flex: 1,
+    backgroundColor: '#F3F6FB',
+  } as ViewStyle,
   container: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: '#F3F6FB',
   },
   listContent: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 28,
   },
-  titulo: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#1A2B4C',
-    marginBottom: 20,
-    letterSpacing: 0.2,
-  },
-  card: {
+  headerPanel: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 18,
-    marginBottom: 14,
+    borderRadius: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: '#E4EBF5',
     shadowColor: '#1A2B4C',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 10,
-    elevation: 3,
+    elevation: 2,
+  },
+  headerEyebrow: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#6E82A8',
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  titulo: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1A2B4C',
+    marginBottom: 4,
+  },
+  subtitulo: {
+    fontSize: 14,
+    color: '#5A6B82',
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    marginBottom: 14,
+    minHeight: 44,
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#EFEFEF',
+    borderColor: '#EDEFF3',
+    shadowColor: '#1A2B4C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  cardHeader: {
+    marginBottom: 8,
+  },
+  cardBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#E8F5EE',
+    color: '#1F7A58',
+    fontSize: 10,
+    fontWeight: '700',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
   },
   nome: {
     fontSize: 16,
@@ -174,5 +257,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#5A6B82',
     lineHeight: 18,
+  },
+  buttonCadastro: {
+    backgroundColor: '#1A2B4C',
+    borderRadius: 14,
+    paddingVertical: 15,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    shadowColor: '#1A2B4C',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
