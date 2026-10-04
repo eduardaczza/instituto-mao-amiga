@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
-  Alert,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { doacoesStorage } from './src/services/doacoesStorage';
@@ -29,6 +28,8 @@ export default function TelaCadastroDoacao({ navigation }: Props) {
   const [pontoDestino, setPontoDestino] = useState('');
   const [erroQuantidade, setErroQuantidade] = useState('');
   const [seletorPontosVisivel, setSeletorPontosVisivel] = useState(false);
+  const [feedbackVisivel, setFeedbackVisivel] = useState(false);
+  const [cadastroSalvo, setCadastroSalvo] = useState(false);
 
   const validarFormulario = () => {
     const tipoValido = tipoItem.trim().length > 0;
@@ -62,19 +63,13 @@ export default function TelaCadastroDoacao({ navigation }: Props) {
     try {
       await doacoesStorage.salvarDoacao(doacao);
     } catch {
-      Alert.alert(
-        'Erro ao cadastrar doação',
-        'Não foi possível salvar a doação. Tente novamente.'
-      );
+      setCadastroSalvo(false);
+      setFeedbackVisivel(true);
       return;
     }
 
-    navigation.goBack();
-    Alert.alert(
-      'Doação cadastrada',
-      `Tipo: ${tipoItem}\nQuantidade: ${quantidade}\nPonto: ${pontoDestino}`,
-      [{ text: 'OK' }]
-    );
+    setCadastroSalvo(true);
+    setFeedbackVisivel(true);
   };
 
   return (
@@ -197,6 +192,50 @@ export default function TelaCadastroDoacao({ navigation }: Props) {
           </View>
         </View>
       </Modal>
+      <Modal
+        visible={feedbackVisivel}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFeedbackVisivel(false)}
+      >
+        <View style={styles.fundoFeedback}>
+          <View style={styles.caixaFeedback}>
+            <Text
+              style={[
+                styles.tituloFeedback,
+                !cadastroSalvo && styles.tituloErroFeedback,
+              ]}
+            >
+              {cadastroSalvo
+                ? 'Doação criada com sucesso!'
+                : 'Erro ao cadastrar doação'}
+            </Text>
+            <Text style={styles.textoFeedback}>
+              {cadastroSalvo
+                ? `${tipoItem} — ${quantidade} unidade(s), destino: ${pontoDestino}.`
+                : 'Não foi possível salvar a doação. Tente novamente.'}
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.botaoFeedback,
+                !cadastroSalvo && styles.botaoErroFeedback,
+              ]}
+              onPress={() => {
+                setFeedbackVisivel(false);
+                if (cadastroSalvo) {
+                  navigation.goBack();
+                }
+              }}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+            >
+              <Text style={styles.textoBotaoFeedback}>
+                {cadastroSalvo ? 'Continuar' : 'Fechar'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -279,6 +318,50 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.45)',
+  },
+  fundoFeedback: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  caixaFeedback: {
+    width: '100%',
+    maxWidth: 420,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 22,
+  },
+  tituloFeedback: {
+    color: '#1F7A58',
+    fontSize: 20,
+    fontWeight: '800',
+    marginBottom: 10,
+  },
+  tituloErroFeedback: {
+    color: '#B42318',
+  },
+  textoFeedback: {
+    color: '#40516A',
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  botaoFeedback: {
+    minHeight: 48,
+    borderRadius: 12,
+    backgroundColor: '#1A2B4C',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 22,
+  },
+  botaoErroFeedback: {
+    backgroundColor: '#B42318',
+  },
+  textoBotaoFeedback: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
   conteudoModal: {
     maxHeight: '80%',

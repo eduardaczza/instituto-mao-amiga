@@ -11,15 +11,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { doacoesStorage } from './src/services/doacoesStorage';
 
-type RootStackParamList = {
-  Lista: undefined;
-  Detalhe: { pontoId: string };
-  Cadastro: undefined;
-  Historico: undefined;
-};
-
-type Props = NativeStackScreenProps<RootStackParamList, 'Historico'>;
-
 type Doacao = {
   id: string;
   tipoItem: string;
@@ -28,10 +19,22 @@ type Doacao = {
   criadoEm: string;
 };
 
+type RootStackParamList = {
+  Lista: undefined;
+  Detalhe: { pontoId: string };
+  Cadastro: undefined;
+  Historico: undefined;
+  DetalheDoacao: { doacao: Doacao };
+};
+
+type Props = NativeStackScreenProps<RootStackParamList, 'Historico'>;
+
 const DoacaoItem = React.memo(function DoacaoItem({
   doacao,
+  onPress,
 }: {
   doacao: Doacao;
+  onPress: () => void;
 }) {
   const dataFormatada = new Date(doacao.criadoEm).toLocaleString('pt-BR', {
     day: '2-digit',
@@ -42,7 +45,13 @@ const DoacaoItem = React.memo(function DoacaoItem({
   });
 
   return (
-    <View style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      onPress={onPress}
+      activeOpacity={0.8}
+      accessibilityRole="button"
+      accessibilityLabel={`Ver detalhes da doação de ${doacao.tipoItem}`}
+    >
       <Text style={styles.tipoItem}>{doacao.tipoItem}</Text>
       <Text style={styles.informacao}>
         Quantidade: {doacao.quantidade}
@@ -51,7 +60,7 @@ const DoacaoItem = React.memo(function DoacaoItem({
         Ponto de destino: {doacao.pontoDestino}
       </Text>
       <Text style={styles.data}>Registrada em {dataFormatada}</Text>
-    </View>
+    </TouchableOpacity>
   );
 });
 
@@ -103,7 +112,12 @@ export default function TelaHistoricoDoacoes({ navigation }: Props) {
       ]}
       data={doacoes}
       keyExtractor={(item) => item.id}
-      renderItem={({ item }) => <DoacaoItem doacao={item} />}
+      renderItem={({ item }) => (
+        <DoacaoItem
+          doacao={item}
+          onPress={() => navigation.navigate('DetalheDoacao', { doacao: item })}
+        />
+      )}
       ListHeaderComponent={
         <View style={styles.header}>
           <Text style={styles.titulo}>Minhas doações</Text>
