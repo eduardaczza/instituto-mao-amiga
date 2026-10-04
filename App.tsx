@@ -3,11 +3,13 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import TelaListaPontos from './TelaListaPontos';
 import TelaDetalhePonto from './TelaDetalhePonto';
 import TelaFormularioDoacao from './TelaCadastroDoacao';
+import TelaHistoricoDoacoes from './TelaHistoricoDoacoes';
 
 export type RootStackParamList = {
   Lista: undefined;
   Detalhe: { pontoId: string };
   Cadastro: undefined;
+  Historico: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -30,6 +32,11 @@ export default function App() {
           name="Cadastro"
           component={TelaFormularioDoacao}
           options={{ title: 'Cadastro de doação' }}
+        />
+        <Stack.Screen
+          name="Historico"
+          component={TelaHistoricoDoacoes}
+          options={{ title: 'Minhas doações' }}
         />
       </Stack.Navigator>
     </NavigationContainer>
