@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   View,
@@ -12,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { doacoesStorage } from './src/services/doacoesStorage';
 
 type RootStackParamList = {
   Lista: undefined;
@@ -21,7 +21,7 @@ type RootStackParamList = {
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Cadastro'>;
 
-export default function TelaFormularioDoacao({ navigation }: Props) {
+export default function TelaCadastroDoacao({ navigation }: Props) {
   const [tipoItem, setTipoItem] = useState('');
   const [quantidade, setQuantidade] = useState('');
   const [pontoDestino, setPontoDestino] = useState('');
@@ -38,7 +38,6 @@ export default function TelaFormularioDoacao({ navigation }: Props) {
       } else {
         setErroQuantidade('');
       }
-
       return false;
     }
 
@@ -46,8 +45,24 @@ export default function TelaFormularioDoacao({ navigation }: Props) {
     return true;
   };
 
-  const handleEnviar = () => {
+  const handleEnviar = async () => {
     if (!validarFormulario()) {
+      return;
+    }
+
+    const doacao = {
+      tipoItem: tipoItem.trim(),
+      quantidade: quantidade.trim(),
+      pontoDestino: pontoDestino.trim(),
+    };
+
+    try {
+      await doacoesStorage.salvarDoacao(doacao);
+    } catch {
+      Alert.alert(
+        'Erro ao cadastrar doação',
+        'Não foi possível salvar a doação. Tente novamente.'
+      );
       return;
     }
 
@@ -138,14 +153,8 @@ export default function TelaFormularioDoacao({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F3F6FB',
-  },
-  content: {
-    padding: 20,
-    paddingBottom: 36,
-  },
+  container: { flex: 1, backgroundColor: '#F3F6FB' },
+  content: { padding: 20, paddingBottom: 36 },
   headerCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
@@ -153,10 +162,6 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     borderWidth: 1,
     borderColor: '#E4EBF5',
-    shadowColor: '#1A2B4C',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
     elevation: 2,
   },
   headerEyebrow: {
@@ -167,17 +172,8 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 6,
   },
-  titulo: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#1A2B4C',
-    marginBottom: 4,
-  },
-  subtitulo: {
-    fontSize: 14,
-    color: '#5A6B82',
-    lineHeight: 20,
-  },
+  titulo: { fontSize: 28, fontWeight: '800', color: '#1A2B4C', marginBottom: 4 },
+  subtitulo: { fontSize: 14, color: '#5A6B82', lineHeight: 20 },
   formCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
@@ -185,21 +181,10 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     borderWidth: 1,
     borderColor: '#E4EBF5',
-    shadowColor: '#1A2B4C',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
     elevation: 2,
   },
-  formGroup: {
-    marginBottom: 18,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#2C3E50',
-    marginBottom: 8,
-  },
+  formGroup: { marginBottom: 18 },
+  label: { fontSize: 14, fontWeight: '700', color: '#2C3E50', marginBottom: 8 },
   input: {
     backgroundColor: '#F8FAFD',
     borderWidth: 1,
@@ -211,16 +196,8 @@ const styles = StyleSheet.create({
     color: '#1A2B4C',
     minHeight: 48,
   },
-  inputError: {
-    borderColor: '#D13B3B',
-    backgroundColor: '#FFF5F5',
-  },
-  errorText: {
-    marginTop: 8,
-    color: '#D13B3B',
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  inputError: { borderColor: '#D13B3B', backgroundColor: '#FFF5F5' },
+  errorText: { marginTop: 8, color: '#D13B3B', fontSize: 12, fontWeight: '600' },
   button: {
     backgroundColor: '#1A2B4C',
     borderRadius: 14,
@@ -229,15 +206,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 20,
     minHeight: 48,
-    shadowColor: '#1A2B4C',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
     elevation: 4,
   },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 });
