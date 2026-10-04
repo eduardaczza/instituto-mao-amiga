@@ -2,7 +2,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import TelaListaPontos from './TelaListaPontos';
 import TelaDetalhePonto from './TelaDetalhePonto';
-import TelaCadastroDoacao from './TelaCadastroDoacao;
+import TelaFormularioDoacao from './TelaCadastroDoacao';
 
 export type RootStackParamList = {
   Lista: undefined;

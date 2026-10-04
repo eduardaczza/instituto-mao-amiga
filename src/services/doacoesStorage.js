@@ -9,45 +9,57 @@ export const doacoesStorage = {
       return json != null ? JSON.parse(json) : [];
     } catch (e) {
       console.error('Erro ao ler doações', e);
-      return [];
+      throw e;
     }
   },
 
   async salvarDoacao(novaDoacao) {
     try {
-      const doacoes = await this.listarDoacoes();
+      const doacoes = await doacoesStorage.listarDoacoes();
+      const idBase = String(Date.now());
+      let id = idBase;
+      let sufixo = 1;
+
+      while (doacoes.some((doacao) => doacao.id === id)) {
+        id = `${idBase}-${sufixo}`;
+        sufixo += 1;
+      }
+
       const itemComId = {
-        id: String(Date.now()),
-        criadoEm: new Date().toISOString(),
         ...novaDoacao,
+        id,
+        criadoEm: new Date().toISOString(),
       };
       const listaAtualizada = [itemComId, ...doacoes];
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(listaAtualizada));
       return itemComId;
     } catch (e) {
       console.error('Erro ao salvar doação', e);
+      throw e;
     }
   },
 
   async atualizarDoacao(doacaoEditada) {
     try {
-      const doacoes = await this.listarDoacoes();
+      const doacoes = await doacoesStorage.listarDoacoes();
       const listaAtualizada = doacoes.map((item) =>
         item.id === doacaoEditada.id ? { ...item, ...doacaoEditada } : item
       );
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(listaAtualizada));
     } catch (e) {
       console.error('Erro ao atualizar doação', e);
+      throw e;
     }
   },
 
   async excluirDoacao(id) {
     try {
-      const doacoes = await this.listarDoacoes();
+      const doacoes = await doacoesStorage.listarDoacoes();
       const listaAtualizada = doacoes.filter((item) => item.id !== id);
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(listaAtualizada));
     } catch (e) {
       console.error('Erro ao excluir doação', e);
+      throw e;
     }
   },
 };
