@@ -18,18 +18,38 @@ type RootStackParamList = {
   Lista: undefined;
   Detalhe: { pontoId: string };
   Cadastro: undefined;
+  EditarDoacao: { doacao: Doacao };
 };
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Cadastro'>;
+type Doacao = {
+  id: string;
+  tipoItem: string;
+  quantidade: string;
+  pontoDestino: string;
+  criadoEm: string;
+};
 
-export default function TelaCadastroDoacao({ navigation }: Props) {
-  const [tipoItem, setTipoItem] = useState('');
-  const [quantidade, setQuantidade] = useState('');
-  const [pontoDestino, setPontoDestino] = useState('');
+type Props = NativeStackScreenProps<
+  RootStackParamList,
+  'Cadastro' | 'EditarDoacao'
+>;
+
+export default function TelaCadastroDoacao({ navigation, route }: Props) {
+  const doacaoEmEdicao =
+    route.name === 'EditarDoacao' ? route.params?.doacao : undefined;
+  const modoEdicao = doacaoEmEdicao !== undefined;
+  const [tipoItem, setTipoItem] = useState(doacaoEmEdicao?.tipoItem ?? '');
+  const [quantidade, setQuantidade] = useState(
+    doacaoEmEdicao?.quantidade ?? ''
+  );
+  const [pontoDestino, setPontoDestino] = useState(
+    doacaoEmEdicao?.pontoDestino ?? ''
+  );
   const [erroQuantidade, setErroQuantidade] = useState('');
   const [seletorPontosVisivel, setSeletorPontosVisivel] = useState(false);
   const [feedbackVisivel, setFeedbackVisivel] = useState(false);
   const [cadastroSalvo, setCadastroSalvo] = useState(false);
+  const [salvando, setSalvando] = useState(false);
 
   const validarFormulario = () => {
     const tipoValido = tipoItem.trim().length > 0;
@@ -49,27 +69,41 @@ export default function TelaCadastroDoacao({ navigation }: Props) {
     return true;
   };
 
-  const handleEnviar = async () => {
-    if (!validarFormulario()) {
-      return;
-    }
-
+  const salvarDoacao = async () => {
     const doacao = {
       tipoItem: tipoItem.trim(),
       quantidade: quantidade.trim(),
       pontoDestino: pontoDestino.trim(),
     };
 
+    setSalvando(true);
     try {
-      await doacoesStorage.salvarDoacao(doacao);
+      if (doacaoEmEdicao) {
+        await doacoesStorage.atualizarDoacao({
+          ...doacaoEmEdicao,
+          ...doacao,
+        });
+      } else {
+        await doacoesStorage.salvarDoacao(doacao);
+      }
     } catch {
       setCadastroSalvo(false);
       setFeedbackVisivel(true);
+      setSalvando(false);
       return;
     }
 
     setCadastroSalvo(true);
     setFeedbackVisivel(true);
+    setSalvando(false);
+  };
+
+  const handleEnviar = () => {
+    if (!validarFormulario()) {
+      return;
+    }
+
+    void salvarDoacao();
   };
 
   return (
@@ -83,10 +117,16 @@ export default function TelaCadastroDoacao({ navigation }: Props) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerCard}>
-          <Text style={styles.headerEyebrow}>Nova doação</Text>
-          <Text style={styles.titulo}>Cadastro</Text>
+          <Text style={styles.headerEyebrow}>
+            {modoEdicao ? 'Atualização de doação' : 'Nova doação'}
+          </Text>
+          <Text style={styles.titulo}>
+            {modoEdicao ? 'Editar doação' : 'Cadastro'}
+          </Text>
           <Text style={styles.subtitulo}>
-            Registre o item, a quantidade e o ponto de destino.
+            {modoEdicao
+              ? 'Atualize os dados da doação. O identificador e a data original serão mantidos.'
+              : 'Registre o item, a quantidade e o ponto de destino.'}
           </Text>
         </View>
 
@@ -148,10 +188,28 @@ export default function TelaCadastroDoacao({ navigation }: Props) {
         <TouchableOpacity
           style={styles.button}
           onPress={handleEnviar}
+          disabled={salvando}
           activeOpacity={0.9}
         >
-          <Text style={styles.buttonText}>Enviar cadastro</Text>
+          {salvando ? (
+            <Text style={styles.buttonText}>Salvando...</Text>
+          ) : (
+            <Text style={styles.buttonText}>
+              {modoEdicao ? 'Salvar alterações' : 'Enviar cadastro'}
+            </Text>
+          )}
         </TouchableOpacity>
+        {modoEdicao && (
+          <TouchableOpacity
+            style={styles.buttonCancelar}
+            onPress={() => navigation.goBack()}
+            disabled={salvando}
+            activeOpacity={0.9}
+            accessibilityRole="button"
+          >
+            <Text style={styles.buttonCancelarText}>Cancelar edição</Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
       <Modal
         visible={seletorPontosVisivel}
@@ -207,13 +265,17 @@ export default function TelaCadastroDoacao({ navigation }: Props) {
               ]}
             >
               {cadastroSalvo
-                ? 'Doação criada com sucesso!'
-                : 'Erro ao cadastrar doação'}
+                ? modoEdicao
+                  ? 'Doação atualizada com sucesso!'
+                  : 'Doação criada com sucesso!'
+                : modoEdicao
+                  ? 'Erro ao atualizar doação'
+                  : 'Erro ao cadastrar doação'}
             </Text>
             <Text style={styles.textoFeedback}>
               {cadastroSalvo
                 ? `${tipoItem} — ${quantidade} unidade(s), destino: ${pontoDestino}.`
-                : 'Não foi possível salvar a doação. Tente novamente.'}
+                : `Não foi possível ${modoEdicao ? 'atualizar' : 'salvar'} a doação. Tente novamente.`}
             </Text>
             <TouchableOpacity
               style={[
@@ -230,7 +292,9 @@ export default function TelaCadastroDoacao({ navigation }: Props) {
               accessibilityRole="button"
             >
               <Text style={styles.textoBotaoFeedback}>
-                {cadastroSalvo ? 'Continuar' : 'Fechar'}
+                {cadastroSalvo
+                  ? 'Continuar'
+                  : 'Voltar ao formulário'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -427,4 +491,18 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  buttonCancelar: {
+    minHeight: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#D9E2EC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  buttonCancelarText: {
+    color: '#40516A',
+    fontSize: 16,
+    fontWeight: '700',
+  },
 });

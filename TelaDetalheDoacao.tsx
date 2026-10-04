@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { doacoesStorage } from './src/services/doacoesStorage';
 
@@ -24,12 +25,14 @@ type RootStackParamList = {
   Cadastro: undefined;
   Historico: undefined;
   DetalheDoacao: { doacao: Doacao };
+  EditarDoacao: { doacao: Doacao };
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DetalheDoacao'>;
 
 export default function TelaDetalheDoacao({ route, navigation }: Props) {
-  const { doacao } = route.params;
+  const [doacao, setDoacao] = useState(route.params.doacao);
+  const [erroCarregamento, setErroCarregamento] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
   const [confirmacaoVisivel, setConfirmacaoVisivel] = useState(false);
   const [erroExclusao, setErroExclusao] = useState('');
@@ -43,6 +46,34 @@ export default function TelaDetalheDoacao({ route, navigation }: Props) {
         hour: '2-digit',
         minute: '2-digit',
       });
+
+  useFocusEffect(
+    useCallback(() => {
+      let telaAtiva = true;
+
+      async function atualizarDoacao() {
+        try {
+          const doacoes = await doacoesStorage.listarDoacoes();
+          const doacaoAtualizada = doacoes.find(
+            (item: Doacao) => item.id === doacao.id
+          );
+          if (telaAtiva && doacaoAtualizada) {
+            setDoacao(doacaoAtualizada);
+            setErroCarregamento(false);
+          }
+        } catch {
+          if (telaAtiva) {
+            setErroCarregamento(true);
+          }
+        }
+      }
+
+      atualizarDoacao();
+      return () => {
+        telaAtiva = false;
+      };
+    }, [doacao.id])
+  );
 
   const abrirConfirmacao = () => {
     setErroExclusao('');
@@ -68,6 +99,11 @@ export default function TelaDetalheDoacao({ route, navigation }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.card}>
+        {erroCarregamento && (
+          <Text style={styles.erroCarregamento}>
+            Não foi possível atualizar os dados da doação.
+          </Text>
+        )}
         <Text style={styles.titulo}>{doacao.tipoItem}</Text>
         <View style={styles.campo}>
           <Text style={styles.rotulo}>Identificador</Text>
@@ -90,6 +126,15 @@ export default function TelaDetalheDoacao({ route, navigation }: Props) {
           <Text style={styles.valor}>{dataFormatada}</Text>
         </View>
       </View>
+
+      <TouchableOpacity
+        style={styles.botaoEditar}
+        onPress={() => navigation.navigate('EditarDoacao', { doacao })}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+      >
+        <Text style={styles.textoBotaoEditar}>Editar doação</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={[styles.botaoExcluir, excluindo && styles.botaoDesabilitado]}
@@ -215,6 +260,25 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   textoBotaoExcluir: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  erroCarregamento: {
+    color: '#B42318',
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  botaoEditar: {
+    minHeight: 48,
+    backgroundColor: '#1A2B4C',
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+    paddingHorizontal: 20,
+  },
+  textoBotaoEditar: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',

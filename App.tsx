@@ -20,6 +20,7 @@ export type RootStackParamList = {
   Cadastro: undefined;
   Historico: undefined;
   DetalheDoacao: { doacao: Doacao };
+  EditarDoacao: { doacao: Doacao };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -42,6 +43,11 @@ export default function App() {
           name="Cadastro"
           component={TelaFormularioDoacao}
           options={{ title: 'Cadastro de doação' }}
+        />
+        <Stack.Screen
+          name="EditarDoacao"
+          component={TelaFormularioDoacao}
+          options={{ title: 'Editar doação' }}
         />
         <Stack.Screen
           name="Historico"
