@@ -1,10 +1,10 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import TelaListaPontos from './TelaListaPontos';
-import TelaDetalhePonto from './TelaDetalhePonto';
-import TelaFormularioDoacao from './TelaCadastroDoacao';
-import TelaHistoricoDoacoes from './TelaHistoricoDoacoes';
-import TelaDetalheDoacao from './TelaDetalheDoacao';
+import TelaListaPontos from './src/screens/TelaListaPontos';
+import TelaDetalhePonto from './src/screens/TelaDetalhePonto';
+import TelaFormularioDoacao from './src/screens/TelaCadastroDoacao';
+import TelaHistoricoDoacoes from './src/screens/TelaHistoricoDoacoes';
+import TelaDetalheDoacao from './src/screens/TelaDetalheDoacao';
 
 type Doacao = {
   id: string;

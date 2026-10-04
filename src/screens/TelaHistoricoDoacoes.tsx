@@ -2,6 +2,8 @@ import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -10,7 +12,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { doacoesStorage } from './src/services/doacoesStorage';
+import { doacoesStorage } from '../services/doacoesStorage';
 
 type Doacao = {
   id: string;
@@ -136,135 +138,143 @@ export default function TelaHistoricoDoacoes({ navigation }: Props) {
   ).sort((a, b) => b.quantidadeTotal - a.quantidadeTotal);
 
   return (
-    <FlatList
+    <KeyboardAvoidingView
       style={styles.container}
-      contentContainerStyle={[
-        styles.conteudo,
-        doacoesFiltradas.length === 0 && styles.conteudoVazio,
-      ]}
-      data={doacoesFiltradas}
-      keyExtractor={(item) => item.id}
-      renderItem={({ item }) => (
-        <DoacaoItem
-          doacao={item}
-          onPress={() =>
-            navigation.navigate('DetalheDoacao', { doacao: item })
-          }
-        />
-      )}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
-      automaticallyAdjustKeyboardInsets
-      ListHeaderComponent={
-        <View>
-          <View style={styles.header}>
-            <Text style={styles.titulo}>Minhas doações</Text>
-            <Text style={styles.subtitulo}>
-              Consulte os registros feitos para os pontos de coleta.
-            </Text>
-          </View>
-          <View style={styles.resumo}>
-            <Text style={styles.tituloResumo}>Resumo das doações</Text>
-            {carregando ? (
-              <Text style={styles.textoResumo}>Carregando totais...</Text>
-            ) : erro ? (
-              <Text style={styles.textoResumoErro}>
-                Não foi possível carregar o resumo.
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <FlatList
+        style={styles.container}
+        contentContainerStyle={[
+          styles.conteudo,
+          doacoesFiltradas.length === 0 && styles.conteudoVazio,
+        ]}
+        data={doacoesFiltradas}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <DoacaoItem
+            doacao={item}
+            onPress={() =>
+              navigation.navigate('DetalheDoacao', { doacao: item })
+            }
+          />
+        )}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        automaticallyAdjustKeyboardInsets
+        ListHeaderComponent={
+          <View>
+            <View style={styles.header}>
+              <Text style={styles.titulo}>Minhas doações</Text>
+              <Text style={styles.subtitulo}>
+                Consulte os registros feitos para os pontos de coleta.
               </Text>
-            ) : doacoes.length === 0 ? (
-              <Text style={styles.textoResumo}>
-                Nenhuma doação registrada para resumir.
+            </View>
+            <View style={styles.resumo}>
+              <Text style={styles.tituloResumo}>Resumo das doações</Text>
+              {carregando ? (
+                <Text style={styles.textoResumo}>Carregando totais...</Text>
+              ) : erro ? (
+                <Text style={styles.textoResumoErro}>
+                  Não foi possível carregar o resumo.
+                </Text>
+              ) : doacoes.length === 0 ? (
+                <Text style={styles.textoResumo}>
+                  Nenhuma doação registrada para resumir.
+                </Text>
+              ) : (
+                <>
+                  <Text style={styles.totalDoacoes}>
+                    Total: {doacoes.length}{' '}
+                    {doacoes.length === 1 ? 'doação' : 'doações'}
+                  </Text>
+                  {totaisPorTipo.map((total) => (
+                    <Text
+                      key={total.tipoItem.toLocaleLowerCase('pt-BR')}
+                      style={styles.linhaResumo}
+                    >
+                      {total.tipoItem}: {total.quantidadeTotal}{' '}
+                      {total.quantidadeTotal === 1 ? 'unidade' : 'unidades'} em{' '}
+                      {total.numeroDoacoes}{' '}
+                      {total.numeroDoacoes === 1 ? 'doação' : 'doações'}
+                    </Text>
+                  ))}
+                </>
+              )}
+            </View>
+            <View
+              style={[
+                styles.buscaContainer,
+                campoBuscaFocado && styles.buscaContainerFocado,
+              ]}
+            >
+              <TextInput
+                style={styles.campoBusca}
+                value={buscaTipoItem}
+                onChangeText={setBuscaTipoItem}
+                onFocus={() => setCampoBuscaFocado(true)}
+                onBlur={() => setCampoBuscaFocado(false)}
+                placeholder="Buscar por tipo de item"
+                placeholderTextColor="#7A8798"
+                returnKeyType="search"
+                accessibilityLabel="Buscar doações por tipo de item"
+              />
+              {buscaTipoItem.length > 0 && (
+                <TouchableOpacity
+                  style={styles.botaoLimparBusca}
+                  onPress={() => setBuscaTipoItem('')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Limpar busca"
+                >
+                  <Text style={styles.textoLimparBusca}>Limpar</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        }
+        ListEmptyComponent={
+          <View style={styles.estadoVazio}>
+            {carregando ? (
+              <>
+                <ActivityIndicator size="large" color="#1A2B4C" />
+                <Text style={styles.mensagem}>Carregando doações...</Text>
+              </>
+            ) : erro ? (
+              <>
+                <Text style={styles.mensagemErro}>
+                  Não foi possível carregar suas doações.
+                </Text>
+                <TouchableOpacity
+                  style={styles.botao}
+                  onPress={() => setTentativa((atual) => atual + 1)}
+                  activeOpacity={0.9}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.textoBotao}>Tentar novamente</Text>
+                </TouchableOpacity>
+              </>
+            ) : termoBusca ? (
+              <Text style={styles.mensagem}>
+                Nenhuma doação encontrada para “{buscaTipoItem.trim()}”.
               </Text>
             ) : (
               <>
-                <Text style={styles.totalDoacoes}>
-                  Total: {doacoes.length}{' '}
-                  {doacoes.length === 1 ? 'doação' : 'doações'}
+                <Text style={styles.mensagem}>
+                  Você ainda não registrou doações.
                 </Text>
-                {totaisPorTipo.map((total) => (
-                  <Text key={total.tipoItem.toLocaleLowerCase('pt-BR')} style={styles.linhaResumo}>
-                    {total.tipoItem}: {total.quantidadeTotal}{' '}
-                    {total.quantidadeTotal === 1 ? 'unidade' : 'unidades'} em{' '}
-                    {total.numeroDoacoes}{' '}
-                    {total.numeroDoacoes === 1 ? 'doação' : 'doações'}
-                  </Text>
-                ))}
+                <TouchableOpacity
+                  style={styles.botao}
+                  onPress={cadastrarDoacao}
+                  activeOpacity={0.9}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.textoBotao}>Registrar doação</Text>
+                </TouchableOpacity>
               </>
             )}
           </View>
-          <View
-            style={[
-              styles.buscaContainer,
-              campoBuscaFocado && styles.buscaContainerFocado,
-            ]}
-          >
-            <TextInput
-              style={styles.campoBusca}
-              value={buscaTipoItem}
-              onChangeText={setBuscaTipoItem}
-              onFocus={() => setCampoBuscaFocado(true)}
-              onBlur={() => setCampoBuscaFocado(false)}
-              placeholder="Buscar por tipo de item"
-              placeholderTextColor="#7A8798"
-              returnKeyType="search"
-              accessibilityLabel="Buscar doações por tipo de item"
-            />
-            {buscaTipoItem.length > 0 && (
-              <TouchableOpacity
-                style={styles.botaoLimparBusca}
-                onPress={() => setBuscaTipoItem('')}
-                accessibilityRole="button"
-                accessibilityLabel="Limpar busca"
-              >
-                <Text style={styles.textoLimparBusca}>Limpar</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-      }
-      ListEmptyComponent={
-        <View style={styles.estadoVazio}>
-          {carregando ? (
-            <>
-              <ActivityIndicator size="large" color="#1A2B4C" />
-              <Text style={styles.mensagem}>Carregando doações...</Text>
-            </>
-          ) : erro ? (
-            <>
-              <Text style={styles.mensagemErro}>
-                Não foi possível carregar suas doações.
-              </Text>
-              <TouchableOpacity
-                style={styles.botao}
-                onPress={() => setTentativa((atual) => atual + 1)}
-                activeOpacity={0.9}
-                accessibilityRole="button"
-              >
-                <Text style={styles.textoBotao}>Tentar novamente</Text>
-              </TouchableOpacity>
-            </>
-          ) : termoBusca ? (
-            <Text style={styles.mensagem}>
-              Nenhuma doação encontrada para “{buscaTipoItem.trim()}”.
-            </Text>
-          ) : (
-            <>
-              <Text style={styles.mensagem}>
-                Você ainda não registrou doações.
-              </Text>
-              <TouchableOpacity
-                style={styles.botao}
-                onPress={cadastrarDoacao}
-                activeOpacity={0.9}
-                accessibilityRole="button"
-              >
-                <Text style={styles.textoBotao}>Registrar doação</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-      }
-    />
+        }
+      />
+    </KeyboardAvoidingView>
   );
 }
 

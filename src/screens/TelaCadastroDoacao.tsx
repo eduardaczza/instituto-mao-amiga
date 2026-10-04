@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { doacoesStorage } from './src/services/doacoesStorage';
+import { doacoesStorage } from '../services/doacoesStorage';
 import { pontosMock } from './TelaListaPontos';
 
 type RootStackParamList = {
@@ -109,7 +109,7 @@ export default function TelaCadastroDoacao({ navigation, route }: Props) {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
         contentContainerStyle={styles.content}
@@ -136,6 +136,7 @@ export default function TelaCadastroDoacao({ navigation, route }: Props) {
             <TextInput
               style={styles.input}
               placeholder="Ex.: roupas, alimentos, brinquedos"
+              placeholderTextColor="#5A6B82"
               value={tipoItem}
               onChangeText={setTipoItem}
               autoCapitalize="words"
@@ -147,6 +148,7 @@ export default function TelaCadastroDoacao({ navigation, route }: Props) {
             <TextInput
               style={[styles.input, erroQuantidade ? styles.inputError : null]}
               placeholder="Ex.: 12"
+              placeholderTextColor="#5A6B82"
               value={quantidade}
               onChangeText={(texto) => {
                 setQuantidade(texto);
