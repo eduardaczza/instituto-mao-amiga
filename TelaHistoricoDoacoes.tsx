@@ -20,6 +20,12 @@ type Doacao = {
   criadoEm: string;
 };
 
+type TotalPorTipo = {
+  tipoItem: string;
+  quantidadeTotal: number;
+  numeroDoacoes: number;
+};
+
 type RootStackParamList = {
   Lista: undefined;
   Detalhe: { pontoId: string };
@@ -109,6 +115,25 @@ export default function TelaHistoricoDoacoes({ navigation }: Props) {
   const doacoesFiltradas = doacoes.filter((doacao) =>
     doacao.tipoItem.toLocaleLowerCase('pt-BR').includes(termoBusca)
   );
+  const totaisPorTipo = Object.values(
+    doacoes.reduce<Record<string, TotalPorTipo>>((totais, doacao) => {
+      const chave = doacao.tipoItem.trim().toLocaleLowerCase('pt-BR');
+      const quantidade = Number(doacao.quantidade);
+      const quantidadeValida = Number.isFinite(quantidade) ? quantidade : 0;
+
+      if (!totais[chave]) {
+        totais[chave] = {
+          tipoItem: doacao.tipoItem.trim(),
+          quantidadeTotal: 0,
+          numeroDoacoes: 0,
+        };
+      }
+
+      totais[chave].quantidadeTotal += quantidadeValida;
+      totais[chave].numeroDoacoes += 1;
+      return totais;
+    }, {})
+  ).sort((a, b) => b.quantidadeTotal - a.quantidadeTotal);
 
   return (
     <FlatList
@@ -137,6 +162,35 @@ export default function TelaHistoricoDoacoes({ navigation }: Props) {
             <Text style={styles.subtitulo}>
               Consulte os registros feitos para os pontos de coleta.
             </Text>
+          </View>
+          <View style={styles.resumo}>
+            <Text style={styles.tituloResumo}>Resumo das doações</Text>
+            {carregando ? (
+              <Text style={styles.textoResumo}>Carregando totais...</Text>
+            ) : erro ? (
+              <Text style={styles.textoResumoErro}>
+                Não foi possível carregar o resumo.
+              </Text>
+            ) : doacoes.length === 0 ? (
+              <Text style={styles.textoResumo}>
+                Nenhuma doação registrada para resumir.
+              </Text>
+            ) : (
+              <>
+                <Text style={styles.totalDoacoes}>
+                  Total: {doacoes.length}{' '}
+                  {doacoes.length === 1 ? 'doação' : 'doações'}
+                </Text>
+                {totaisPorTipo.map((total) => (
+                  <Text key={total.tipoItem.toLocaleLowerCase('pt-BR')} style={styles.linhaResumo}>
+                    {total.tipoItem}: {total.quantidadeTotal}{' '}
+                    {total.quantidadeTotal === 1 ? 'unidade' : 'unidades'} em{' '}
+                    {total.numeroDoacoes}{' '}
+                    {total.numeroDoacoes === 1 ? 'doação' : 'doações'}
+                  </Text>
+                ))}
+              </>
+            )}
           </View>
           <View
             style={[
@@ -243,6 +297,41 @@ const styles = StyleSheet.create({
   subtitulo: {
     fontSize: 14,
     color: '#5A6B82',
+    lineHeight: 20,
+  },
+  resumo: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: '#E4EBF5',
+  },
+  tituloResumo: {
+    color: '#1A2B4C',
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  totalDoacoes: {
+    color: '#40516A',
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  linhaResumo: {
+    color: '#40516A',
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  textoResumo: {
+    color: '#5A6B82',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  textoResumoErro: {
+    color: '#B42318',
+    fontSize: 14,
     lineHeight: 20,
   },
   buscaContainer: {
