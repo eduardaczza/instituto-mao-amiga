@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -9,7 +10,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { doacoesStorage } from './src/services/doacoesStorage';
+import { doacoesStorage } from '../services/doacoesStorage';
 
 type Doacao = {
   id: string;
@@ -97,7 +98,11 @@ export default function TelaDetalheDoacao({ route, navigation }: Props) {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.conteudo}
+      keyboardShouldPersistTaps="handled"
+    >
       <View style={styles.card}>
         {erroCarregamento && (
           <Text style={styles.erroCarregamento}>
@@ -210,7 +215,7 @@ export default function TelaDetalheDoacao({ route, navigation }: Props) {
           </View>
         </View>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -218,7 +223,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F3F6FB',
+  },
+  conteudo: {
     padding: 20,
+    paddingBottom: 32,
   },
   card: {
     backgroundColor: '#FFFFFF',
