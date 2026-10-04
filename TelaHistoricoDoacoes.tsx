@@ -4,6 +4,7 @@ import {
   FlatList,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -69,6 +70,8 @@ export default function TelaHistoricoDoacoes({ navigation }: Props) {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(false);
   const [tentativa, setTentativa] = useState(0);
+  const [buscaTipoItem, setBuscaTipoItem] = useState('');
+  const [campoBuscaFocado, setCampoBuscaFocado] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -102,28 +105,67 @@ export default function TelaHistoricoDoacoes({ navigation }: Props) {
   );
 
   const cadastrarDoacao = () => navigation.navigate('Cadastro');
+  const termoBusca = buscaTipoItem.trim().toLocaleLowerCase('pt-BR');
+  const doacoesFiltradas = doacoes.filter((doacao) =>
+    doacao.tipoItem.toLocaleLowerCase('pt-BR').includes(termoBusca)
+  );
 
   return (
     <FlatList
       style={styles.container}
       contentContainerStyle={[
         styles.conteudo,
-        doacoes.length === 0 && styles.conteudoVazio,
+        doacoesFiltradas.length === 0 && styles.conteudoVazio,
       ]}
-      data={doacoes}
+      data={doacoesFiltradas}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => (
         <DoacaoItem
           doacao={item}
-          onPress={() => navigation.navigate('DetalheDoacao', { doacao: item })}
+          onPress={() =>
+            navigation.navigate('DetalheDoacao', { doacao: item })
+          }
         />
       )}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
+      automaticallyAdjustKeyboardInsets
       ListHeaderComponent={
-        <View style={styles.header}>
-          <Text style={styles.titulo}>Minhas doações</Text>
-          <Text style={styles.subtitulo}>
-            Consulte os registros feitos para os pontos de coleta.
-          </Text>
+        <View>
+          <View style={styles.header}>
+            <Text style={styles.titulo}>Minhas doações</Text>
+            <Text style={styles.subtitulo}>
+              Consulte os registros feitos para os pontos de coleta.
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.buscaContainer,
+              campoBuscaFocado && styles.buscaContainerFocado,
+            ]}
+          >
+            <TextInput
+              style={styles.campoBusca}
+              value={buscaTipoItem}
+              onChangeText={setBuscaTipoItem}
+              onFocus={() => setCampoBuscaFocado(true)}
+              onBlur={() => setCampoBuscaFocado(false)}
+              placeholder="Buscar por tipo de item"
+              placeholderTextColor="#7A8798"
+              returnKeyType="search"
+              accessibilityLabel="Buscar doações por tipo de item"
+            />
+            {buscaTipoItem.length > 0 && (
+              <TouchableOpacity
+                style={styles.botaoLimparBusca}
+                onPress={() => setBuscaTipoItem('')}
+                accessibilityRole="button"
+                accessibilityLabel="Limpar busca"
+              >
+                <Text style={styles.textoLimparBusca}>Limpar</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       }
       ListEmptyComponent={
@@ -147,9 +189,15 @@ export default function TelaHistoricoDoacoes({ navigation }: Props) {
                 <Text style={styles.textoBotao}>Tentar novamente</Text>
               </TouchableOpacity>
             </>
+          ) : termoBusca ? (
+            <Text style={styles.mensagem}>
+              Nenhuma doação encontrada para “{buscaTipoItem.trim()}”.
+            </Text>
           ) : (
             <>
-              <Text style={styles.mensagem}>Você ainda não registrou doações.</Text>
+              <Text style={styles.mensagem}>
+                Você ainda não registrou doações.
+              </Text>
               <TouchableOpacity
                 style={styles.botao}
                 onPress={cadastrarDoacao}
@@ -196,6 +244,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#5A6B82',
     lineHeight: 20,
+  },
+  buscaContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFD',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D9E2EC',
+    paddingHorizontal: 14,
+    minHeight: 48,
+    marginBottom: 18,
+  },
+  buscaContainerFocado: {
+    borderColor: '#6E82A8',
+  },
+  campoBusca: {
+    flex: 1,
+    minHeight: 46,
+    paddingVertical: 10,
+    color: '#1A2B4C',
+    fontSize: 15,
+  },
+  botaoLimparBusca: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  textoLimparBusca: {
+    color: '#1A2B4C',
+    fontSize: 14,
+    fontWeight: '700',
   },
   card: {
     backgroundColor: '#FFFFFF',
