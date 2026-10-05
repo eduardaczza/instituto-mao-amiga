@@ -104,6 +104,7 @@ type RootStackParamList = {
   Lista: undefined;
   Detalhe: { pontoId: string };
   Cadastro: undefined;
+  Historico: undefined;
 };
 
 type Props = {
@@ -162,9 +163,19 @@ export default function TelaListaPontos({ navigation }: Props) {
       />
 
       <TouchableOpacity
+        style={styles.buttonHistorico}
+        onPress={() => navigation.navigate('Historico')}
+        activeOpacity={0.9}
+        accessibilityRole="button"
+      >
+        <Text style={styles.buttonHistoricoText}>Minhas doações</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
         style={styles.buttonCadastro}
         onPress={() => navigation.navigate('Cadastro')}
         activeOpacity={0.9}
+        accessibilityRole="button"
       >
         <Text style={styles.buttonText}>+ Registrar doação</Text>
       </TouchableOpacity>
@@ -272,6 +283,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 12,
     elevation: 4,
+  },
+  buttonHistorico: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingVertical: 15,
+    marginHorizontal: 20,
+    marginBottom: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: '#D9E2EC',
+  },
+  buttonHistoricoText: {
+    color: '#1A2B4C',
+    fontSize: 16,
+    fontWeight: '700',
   },
   buttonText: {
     color: '#FFFFFF',
