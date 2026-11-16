@@ -11,23 +11,8 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { doacoesStorage } from '../services/doacoesStorage';
-
-type Doacao = {
-  id: string;
-  tipoItem: string;
-  quantidade: string;
-  pontoDestino: string;
-  criadoEm: string;
-};
-
-type RootStackParamList = {
-  Lista: undefined;
-  Detalhe: { pontoId: string };
-  Cadastro: undefined;
-  Historico: undefined;
-  DetalheDoacao: { doacao: Doacao };
-  EditarDoacao: { doacao: Doacao };
-};
+import type { RootStackParamList } from '../navigation/types';
+import type { Doacao } from '../types/doacao';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DetalheDoacao'>;
 

@@ -1,11 +1,10 @@
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, View, Text, StyleSheet, ScrollView } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { pontosMock, type Ponto } from './TelaListaPontos';
-
-type RootStackParamList = {
-  Lista: undefined;
-  Detalhe: { pontoId: string };
-};
+import type { RootStackParamList } from '../navigation/types';
+import { ApiError } from '../services/api';
+import { pontosService } from '../services/pontosService';
+import type { Ponto } from '../types/ponto';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Detalhe'>;
 
@@ -34,12 +33,59 @@ function DetalhePonto({ ponto }: { ponto: Ponto }) {
 
 export default function TelaDetalhePonto({ route }: Props) {
   const { pontoId } = route.params;
-  const ponto = pontosMock.find((p) => p.id === pontoId);
+  const [ponto, setPonto] = useState<Ponto | null>(null);
+  const [carregando, setCarregando] = useState(true);
+  const [mensagemErro, setMensagemErro] = useState('');
 
-  if (!ponto) {
+  useEffect(() => {
+    let telaAtiva = true;
+
+    async function carregarPonto() {
+      setCarregando(true);
+      setMensagemErro('');
+      try {
+        const resultado = await pontosService.buscarPorId(pontoId);
+        if (telaAtiva) {
+          setPonto(resultado);
+        }
+      } catch (error) {
+        if (telaAtiva) {
+          if (error instanceof ApiError && error.status === 404) {
+            setMensagemErro('Ponto não encontrado.');
+          } else {
+            setMensagemErro(
+              'Não foi possível carregar este ponto. Verifique a conexão com a API.'
+            );
+          }
+        }
+      } finally {
+        if (telaAtiva) {
+          setCarregando(false);
+        }
+      }
+    }
+
+    void carregarPonto();
+    return () => {
+      telaAtiva = false;
+    };
+  }, [pontoId]);
+
+  if (carregando) {
     return (
       <View style={styles.containerError}>
-        <Text style={styles.textoErro}>⚠️ Ponto não encontrado.</Text>
+        <ActivityIndicator size="large" color="#1A2B4C" />
+        <Text style={styles.textoErro}>Carregando ponto...</Text>
+      </View>
+    );
+  }
+
+  if (mensagemErro || !ponto) {
+    return (
+      <View style={styles.containerError}>
+        <Text style={styles.textoErro}>
+          {mensagemErro || 'Ponto não encontrado.'}
+        </Text>
       </View>
     );
   }
@@ -59,11 +105,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 24,
     backgroundColor: '#F5F7FA',
   },
   textoErro: {
     fontSize: 16,
     color: '#888888',
+    textAlign: 'center',
+    marginTop: 12,
   },
   nome: {
     fontSize: 22,
@@ -77,10 +126,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#1A2B4C',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
+    boxShadow: '0px 2px 6px rgba(26, 43, 76, 0.05)',
     elevation: 2,
     borderWidth: 1,
     borderColor: '#EFEFEF',
