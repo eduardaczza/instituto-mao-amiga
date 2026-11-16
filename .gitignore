@@ -2,6 +2,8 @@
 
 # dependencies
 node_modules/
+/api/target/
+/api/data/
 
 # Expo
 .expo/

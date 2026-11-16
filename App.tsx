@@ -5,23 +5,7 @@ import TelaDetalhePonto from './src/screens/TelaDetalhePonto';
 import TelaFormularioDoacao from './src/screens/TelaCadastroDoacao';
 import TelaHistoricoDoacoes from './src/screens/TelaHistoricoDoacoes';
 import TelaDetalheDoacao from './src/screens/TelaDetalheDoacao';
-
-type Doacao = {
-  id: string;
-  tipoItem: string;
-  quantidade: string;
-  pontoDestino: string;
-  criadoEm: string;
-};
-
-export type RootStackParamList = {
-  Lista: undefined;
-  Detalhe: { pontoId: string };
-  Cadastro: undefined;
-  Historico: undefined;
-  DetalheDoacao: { doacao: Doacao };
-  EditarDoacao: { doacao: Doacao };
-};
+import type { RootStackParamList } from './src/navigation/types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 

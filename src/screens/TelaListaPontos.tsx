@@ -1,115 +1,20 @@
-
+import { useCallback, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
+  ActivityIndicator,
   FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
   type ViewStyle,
 } from 'react-native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/types';
+import { pontosService, type Pagina } from '../services/pontosService';
+import type { Ponto } from '../types/ponto';
 
-export type Ponto = {
-  id: string;
-  nome: string;
-  endereco: string;
-  diasHorarios: string;
-  recebeDistribui: string;
-};
-
-export const pontosMock: Ponto[] = [
-  {
-    id: '1',
-    nome: 'Ponto Centro — Igreja São José',
-    endereco: 'Rua das Flores, 120, Centro, São Luís - MA, CEP 65010-000',
-    diasHorarios: 'Segunda a sexta, 9h–17h',
-    recebeDistribui:
-      'Recebe alimentos não perecíveis e roupas; distribui cestas básicas às terças.',
-  },
-  {
-    id: '2',
-    nome: 'Ponto Norte — Associação Bairro Alto',
-    endereco: 'Av. Brasil, 890, Bairro Alto, São Luís - MA, CEP 65040-210',
-    diasHorarios: 'Terça e quinta, 14h–19h',
-    recebeDistribui:
-      'Recebe hortifruti de feiras; distribui kits de higiene aos sábados.',
-  },
-  {
-    id: '3',
-    nome: 'Ponto Sul — Mercado Comunitário',
-    endereco: 'Travessa do Sol, 45, Vila Nova, São Luís - MA, CEP 65060-120',
-    diasHorarios: 'Sábado, 8h–12h',
-    recebeDistribui:
-      'Recebe doações de famílias e mercados; distribui refeições prontas no mesmo dia.',
-  },
-  {
-    id: '4',
-    nome: 'Ponto Leste — Escola Municipal Aurora',
-    endereco: 'Rua Aurora, 310, Cohama, São Luís - MA, CEP 65074-180',
-    diasHorarios: 'Quarta e sexta, 10h–16h',
-    recebeDistribui:
-      'Recebe material escolar e lanches; distribui kits infantis às sextas.',
-  },
-  {
-    id: '5',
-    nome: 'Ponto Oeste — Centro Comunitário Liberdade',
-    endereco: 'Av. dos Holandeses, 1500, Calhau, São Luís - MA, CEP 65071-380',
-    diasHorarios: 'Segunda, quarta e sábado, 8h–12h',
-    recebeDistribui:
-      'Recebe roupas e calçados; distribui enxovais para famílias cadastradas.',
-  },
-  {
-    id: '6',
-    nome: 'Ponto Anil — Paróquia Nossa Senhora',
-    endereco: 'Rua do Anil, 78, Anil, São Luís - MA, CEP 65046-140',
-    diasHorarios: 'Domingo, 7h–11h',
-    recebeDistribui:
-      'Recebe alimentos perecíveis da feira; distribui café da manhã comunitário.',
-  },
-  {
-    id: '7',
-    nome: 'Ponto João Paulo — Associação de Moradores',
-    endereco: 'Rua das Palmeiras, 220, João Paulo, São Luís - MA, CEP 65050-000',
-    diasHorarios: 'Terça a sábado, 13h–18h',
-    recebeDistribui:
-      'Recebe produtos de limpeza e higiene; distribui cestas às quintas.',
-  },
-  {
-    id: '8',
-    nome: 'Ponto Renascença — Espaço Cultural Coletivo',
-    endereco: 'Rua do Giz, 400, Renascença, São Luís - MA, CEP 65075-230',
-    diasHorarios: 'Segunda a sexta, 8h–18h',
-    recebeDistribui:
-      'Recebe livros, agasalhos e cobertores; distribui kits de inverno às segundas.',
-  },
-  {
-    id: '9',
-    nome: 'Ponto Turu — Centro de Apoio Social',
-    endereco: 'Av. São Luís Rei de França, 55, Turu, São Luís - MA, CEP 65065-470',
-    diasHorarios: 'Quarta, sexta e sábado, 9h–15h',
-    recebeDistribui:
-      'Recebe brinquedos e material didático; distribui kits de leitura e lanches.',
-  },
-  {
-    id: '10',
-    nome: 'Ponto Maracanã — Cooperativa Rural',
-    endereco: 'Estrada da Maioba, 1020, Maracanã, São Luís - MA, CEP 65090-000',
-    diasHorarios: 'Quinta a domingo, 7h–13h',
-    recebeDistribui:
-      'Recebe cestas de produtores locais; distribui alimentos frescos para famílias da região.',
-  },
-];
-
-type RootStackParamList = {
-  Lista: undefined;
-  Detalhe: { pontoId: string };
-  Cadastro: undefined;
-  Historico: undefined;
-};
-
-type Props = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'Lista'>;
-};
+type Props = NativeStackScreenProps<RootStackParamList, 'Lista'>;
 
 function PontoItem({
   ponto,
@@ -123,7 +28,6 @@ function PontoItem({
       style={styles.card}
       onPress={onPress}
       activeOpacity={0.75}
-      hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
       accessibilityRole="button"
     >
       <View style={styles.cardHeader}>
@@ -136,19 +40,101 @@ function PontoItem({
 }
 
 export default function TelaListaPontos({ navigation }: Props) {
+  const [pontos, setPontos] = useState<Ponto[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [carregandoMais, setCarregandoMais] = useState(false);
+  const [erro, setErro] = useState('');
+  const [paginaAtual, setPaginaAtual] = useState(-1);
+  const [totalPaginas, setTotalPaginas] = useState(0);
+  const [totalPontos, setTotalPontos] = useState(0);
+  const [tentativa, setTentativa] = useState(0);
+  const carregamentoEmAndamento = useRef(false);
+
+  const atualizarLista = useCallback(
+    (resposta: Pagina<Ponto>, anexar: boolean) => {
+      setPontos((atuais) =>
+        anexar ? [...atuais, ...resposta.content] : resposta.content
+      );
+      setPaginaAtual(resposta.page.number);
+      setTotalPaginas(resposta.page.totalPages);
+      setTotalPontos(resposta.page.totalElements);
+    },
+    []
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      let telaAtiva = true;
+      setCarregando(true);
+      setErro('');
+      setPaginaAtual(-1);
+      carregamentoEmAndamento.current = false;
+
+      async function carregarPrimeiraPagina() {
+        try {
+          const resposta = await pontosService.listar(0);
+          if (telaAtiva) {
+            atualizarLista(resposta, false);
+          }
+        } catch {
+          if (telaAtiva) {
+            setErro(
+              'Não foi possível carregar os pontos. Verifique se a API está em execução e tente novamente.'
+            );
+          }
+        } finally {
+          if (telaAtiva) {
+            setCarregando(false);
+          }
+        }
+      }
+
+      void carregarPrimeiraPagina();
+      return () => {
+        telaAtiva = false;
+      };
+    }, [atualizarLista, tentativa])
+  );
+
+  const carregarProximaPagina = async (repetir = false) => {
+    if (
+      carregamentoEmAndamento.current ||
+      carregando ||
+      (erro !== '' && !repetir) ||
+      paginaAtual + 1 >= totalPaginas
+    ) {
+      return;
+    }
+
+    carregamentoEmAndamento.current = true;
+    setCarregandoMais(true);
+    try {
+      const resposta = await pontosService.listar(paginaAtual + 1);
+      atualizarLista(resposta, true);
+      setErro('');
+    } catch {
+      setErro('Não foi possível carregar mais pontos.');
+    } finally {
+      carregamentoEmAndamento.current = false;
+      setCarregandoMais(false);
+    }
+  };
+
   return (
     <View style={styles.wrapper}>
       <FlatList
         style={styles.container}
         contentContainerStyle={styles.listContent}
-        data={pontosMock}
+        data={pontos}
         keyExtractor={(item) => item.id}
+        onEndReached={() => void carregarProximaPagina()}
+        onEndReachedThreshold={0.4}
         ListHeaderComponent={
           <View style={styles.headerPanel}>
             <Text style={styles.headerEyebrow}>Instituto Mão Amiga</Text>
             <Text style={styles.titulo}>Pontos de coleta</Text>
             <Text style={styles.subtitulo}>
-              {pontosMock.length} locais cadastrados
+              {totalPontos} locais cadastrados
             </Text>
           </View>
         }
@@ -160,6 +146,55 @@ export default function TelaListaPontos({ navigation }: Props) {
             }
           />
         )}
+        ListFooterComponent={
+          carregandoMais ? (
+            <ActivityIndicator
+              style={styles.indicador}
+              size="small"
+              color="#1A2B4C"
+            />
+          ) : erro && pontos.length > 0 ? (
+            <View style={styles.estado}>
+              <Text style={styles.mensagemErro}>{erro}</Text>
+              <TouchableOpacity
+                style={styles.botaoTentarNovamente}
+                onPress={() => void carregarProximaPagina(true)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.textoBotaoTentarNovamente}>
+                  Tentar novamente
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null
+        }
+        ListEmptyComponent={
+          carregando ? (
+            <View style={styles.estado}>
+              <ActivityIndicator size="large" color="#1A2B4C" />
+              <Text style={styles.mensagemEstado}>Carregando pontos...</Text>
+            </View>
+          ) : erro ? (
+            <View style={styles.estado}>
+              <Text style={styles.mensagemErro}>{erro}</Text>
+              <TouchableOpacity
+                style={styles.botaoTentarNovamente}
+                onPress={() => setTentativa((valor) => valor + 1)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.textoBotaoTentarNovamente}>
+                  Tentar novamente
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.estado}>
+              <Text style={styles.mensagemEstado}>
+                Nenhum ponto de coleta cadastrado.
+              </Text>
+            </View>
+          )
+        }
       />
 
       <TouchableOpacity
@@ -196,6 +231,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 28,
+    flexGrow: 1,
   },
   headerPanel: {
     backgroundColor: '#FFFFFF',
@@ -205,10 +241,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     borderWidth: 1,
     borderColor: '#E4EBF5',
-    shadowColor: '#1A2B4C',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
+    boxShadow: '0px 4px 10px rgba(26, 43, 76, 0.08)',
     elevation: 2,
   },
   headerEyebrow: {
@@ -239,10 +272,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#EDEFF3',
-    shadowColor: '#1A2B4C',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    boxShadow: '0px 4px 12px rgba(26, 43, 76, 0.08)',
     elevation: 3,
   },
   cardHeader: {
@@ -269,6 +299,38 @@ const styles = StyleSheet.create({
     color: '#5A6B82',
     lineHeight: 18,
   },
+  estado: {
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 24,
+  },
+  mensagemEstado: {
+    color: '#5A6B82',
+    fontSize: 15,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  mensagemErro: {
+    color: '#B42318',
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 14,
+    textAlign: 'center',
+  },
+  botaoTentarNovamente: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    backgroundColor: '#1A2B4C',
+    borderRadius: 10,
+  },
+  textoBotaoTentarNovamente: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  indicador: {
+    paddingVertical: 16,
+  },
   buttonCadastro: {
     backgroundColor: '#1A2B4C',
     borderRadius: 14,
@@ -278,10 +340,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
-    shadowColor: '#1A2B4C',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
+    boxShadow: '0px 6px 12px rgba(26, 43, 76, 0.12)',
     elevation: 4,
   },
   buttonHistorico: {
