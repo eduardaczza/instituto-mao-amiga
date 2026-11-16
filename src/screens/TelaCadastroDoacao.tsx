@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   View,
   Text,
   TextInput,
@@ -12,27 +13,14 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { doacoesStorage } from '../services/doacoesStorage';
-import { pontosMock } from './TelaListaPontos';
+import type { RootStackParamList } from '../navigation/types';
+import { pontosService } from '../services/pontosService';
+import type { NovaDoacao } from '../types/doacao';
+import type { Ponto } from '../types/ponto';
 
-type RootStackParamList = {
-  Lista: undefined;
-  Detalhe: { pontoId: string };
-  Cadastro: undefined;
-  EditarDoacao: { doacao: Doacao };
-};
-
-type Doacao = {
-  id: string;
-  tipoItem: string;
-  quantidade: string;
-  pontoDestino: string;
-  criadoEm: string;
-};
-
-type Props = NativeStackScreenProps<
-  RootStackParamList,
-  'Cadastro' | 'EditarDoacao'
->;
+type Props =
+  | NativeStackScreenProps<RootStackParamList, 'Cadastro'>
+  | NativeStackScreenProps<RootStackParamList, 'EditarDoacao'>;
 
 export default function TelaCadastroDoacao({ navigation, route }: Props) {
   const doacaoEmEdicao =
@@ -40,7 +28,7 @@ export default function TelaCadastroDoacao({ navigation, route }: Props) {
   const modoEdicao = doacaoEmEdicao !== undefined;
   const [tipoItem, setTipoItem] = useState(doacaoEmEdicao?.tipoItem ?? '');
   const [quantidade, setQuantidade] = useState(
-    doacaoEmEdicao?.quantidade ?? ''
+    doacaoEmEdicao ? String(doacaoEmEdicao.quantidade) : ''
   );
   const [pontoDestino, setPontoDestino] = useState(
     doacaoEmEdicao?.pontoDestino ?? ''
@@ -50,6 +38,44 @@ export default function TelaCadastroDoacao({ navigation, route }: Props) {
   const [feedbackVisivel, setFeedbackVisivel] = useState(false);
   const [cadastroSalvo, setCadastroSalvo] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [pontos, setPontos] = useState<Ponto[]>([]);
+  const [carregandoPontos, setCarregandoPontos] = useState(false);
+  const [erroPontos, setErroPontos] = useState('');
+  const [tentativaPontos, setTentativaPontos] = useState(0);
+
+  useEffect(() => {
+    if (!seletorPontosVisivel) {
+      return;
+    }
+
+    let telaAtiva = true;
+    setCarregandoPontos(true);
+    setErroPontos('');
+
+    async function carregarPontos() {
+      try {
+        const resposta = await pontosService.listar(0, 50);
+        if (telaAtiva) {
+          setPontos(resposta.content);
+        }
+      } catch {
+        if (telaAtiva) {
+          setErroPontos(
+            'Não foi possível carregar os pontos. Verifique se a API está em execução.'
+          );
+        }
+      } finally {
+        if (telaAtiva) {
+          setCarregandoPontos(false);
+        }
+      }
+    }
+
+    void carregarPontos();
+    return () => {
+      telaAtiva = false;
+    };
+  }, [seletorPontosVisivel, tentativaPontos]);
 
   const validarFormulario = () => {
     const tipoValido = tipoItem.trim().length > 0;
@@ -70,9 +96,9 @@ export default function TelaCadastroDoacao({ navigation, route }: Props) {
   };
 
   const salvarDoacao = async () => {
-    const doacao = {
+    const doacao: NovaDoacao = {
       tipoItem: tipoItem.trim(),
-      quantidade: quantidade.trim(),
+      quantidade: Number(quantidade.trim()),
       pontoDestino: pontoDestino.trim(),
     };
 
@@ -233,7 +259,33 @@ export default function TelaCadastroDoacao({ navigation, route }: Props) {
               </TouchableOpacity>
             </View>
             <ScrollView>
-              {pontosMock.map((ponto) => (
+              {carregandoPontos ? (
+                <View style={styles.estadoPontos}>
+                  <ActivityIndicator size="large" color="#1A2B4C" />
+                  <Text style={styles.textoEstadoPontos}>
+                    Carregando pontos...
+                  </Text>
+                </View>
+              ) : erroPontos ? (
+                <View style={styles.estadoPontos}>
+                  <Text style={styles.erroPontos}>{erroPontos}</Text>
+                  <TouchableOpacity
+                    style={styles.botaoTentarPontos}
+                    onPress={() =>
+                      setTentativaPontos((tentativa) => tentativa + 1)
+                    }
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.textoBotaoTentarPontos}>
+                      Tentar novamente
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : pontos.length === 0 ? (
+                <Text style={styles.textoEstadoPontos}>
+                  Nenhum ponto cadastrado na API.
+                </Text>
+              ) : pontos.map((ponto) => (
                 <TouchableOpacity
                   key={ponto.id}
                   style={styles.opcaoPonto}
@@ -479,6 +531,34 @@ const styles = StyleSheet.create({
     color: '#5A6B82',
     fontSize: 12,
     lineHeight: 18,
+  },
+  estadoPontos: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  textoEstadoPontos: {
+    color: '#5A6B82',
+    fontSize: 14,
+    textAlign: 'center',
+    paddingVertical: 14,
+  },
+  erroPontos: {
+    color: '#B42318',
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  botaoTentarPontos: {
+    minHeight: 44,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    backgroundColor: '#1A2B4C',
+    borderRadius: 10,
+  },
+  textoBotaoTentarPontos: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   inputError: { borderColor: '#D13B3B', backgroundColor: '#FFF5F5' },
   errorText: { marginTop: 8, color: '#D13B3B', fontSize: 12, fontWeight: '600' },

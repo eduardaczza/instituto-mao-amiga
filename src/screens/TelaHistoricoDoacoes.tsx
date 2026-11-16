@@ -13,27 +13,13 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { doacoesStorage } from '../services/doacoesStorage';
-
-type Doacao = {
-  id: string;
-  tipoItem: string;
-  quantidade: string;
-  pontoDestino: string;
-  criadoEm: string;
-};
+import type { RootStackParamList } from '../navigation/types';
+import type { Doacao } from '../types/doacao';
 
 type TotalPorTipo = {
   tipoItem: string;
   quantidadeTotal: number;
   numeroDoacoes: number;
-};
-
-type RootStackParamList = {
-  Lista: undefined;
-  Detalhe: { pontoId: string };
-  Cadastro: undefined;
-  Historico: undefined;
-  DetalheDoacao: { doacao: Doacao };
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Historico'>;
@@ -120,8 +106,9 @@ export default function TelaHistoricoDoacoes({ navigation }: Props) {
   const totaisPorTipo = Object.values(
     doacoes.reduce<Record<string, TotalPorTipo>>((totais, doacao) => {
       const chave = doacao.tipoItem.trim().toLocaleLowerCase('pt-BR');
-      const quantidade = Number(doacao.quantidade);
-      const quantidadeValida = Number.isFinite(quantidade) ? quantidade : 0;
+      const quantidadeValida = Number.isFinite(doacao.quantidade)
+        ? doacao.quantidade
+        : 0;
 
       if (!totais[chave]) {
         totais[chave] = {
