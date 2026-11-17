@@ -19,7 +19,7 @@ export type PontoCadastro = {
   tipo: string;
 };
 
-type PontoCrud = PontoCadastro & {
+export type PontoCrud = PontoCadastro & {
   id: string;
 };
 
@@ -45,6 +45,10 @@ export const pontosService = {
 
   buscarPorId(id: string): Promise<Ponto> {
     return get<Ponto>(`/pontos/${encodeURIComponent(id)}`);
+  },
+
+  buscarParaEdicao(id: string): Promise<PontoCrud> {
+    return get<PontoCrud>(`/api/v1/pontos/${encodeURIComponent(id)}`);
   },
 
   cadastrar(ponto: PontoCadastro): Promise<PontoCrud> {

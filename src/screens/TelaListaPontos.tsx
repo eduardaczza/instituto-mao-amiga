@@ -9,6 +9,7 @@ import {
   View,
   type ViewStyle,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { pontosService } from '../services/pontosService';
@@ -92,9 +93,11 @@ export default function TelaListaPontos({ navigation }: Props) {
     }
   }, []);
 
-  useEffect(() => {
-    void carregarPrimeiraPagina(filtroAplicado.current);
-  }, [carregarPrimeiraPagina, tentativa]);
+  useFocusEffect(
+    useCallback(() => {
+      void carregarPrimeiraPagina(filtroAplicado.current);
+    }, [carregarPrimeiraPagina, tentativa])
+  );
 
   useEffect(() => {
     const filtro = busca.trim();
@@ -243,6 +246,15 @@ export default function TelaListaPontos({ navigation }: Props) {
           )
         }
       />
+
+      <TouchableOpacity
+        style={styles.buttonNovoPonto}
+        onPress={() => navigation.navigate('FormularioPonto')}
+        activeOpacity={0.9}
+        accessibilityRole="button"
+      >
+        <Text style={styles.buttonNovoPontoText}>+ Cadastrar ponto</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.buttonHistorico}
@@ -412,6 +424,23 @@ const styles = StyleSheet.create({
     minHeight: 48,
     borderWidth: 1,
     borderColor: '#D9E2EC',
+  },
+  buttonNovoPonto: {
+    backgroundColor: '#E8F5EE',
+    borderRadius: 14,
+    paddingVertical: 15,
+    marginHorizontal: 20,
+    marginBottom: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: '#B9DEC9',
+  },
+  buttonNovoPontoText: {
+    color: '#1F7A58',
+    fontSize: 16,
+    fontWeight: '700',
   },
   buttonHistoricoText: {
     color: '#1A2B4C',
