@@ -18,7 +18,7 @@ cd api
 mvn spring-boot:run
 ```
 
-O servidor fica disponível em `http://localhost:8080`. A primeira inicialização cria o banco H2 em arquivo e insere dez pontos de exemplo em Goiânia. Reinicializações preservam os dados e não repetem a carga inicial.
+O servidor fica disponível em `http://localhost:8080`. A primeira inicialização cria o banco H2 em arquivo e insere 25 pontos de exemplo em Goiânia. Reinicializações preservam os dados e não repetem a carga inicial.
 
 ### Endpoints disponíveis
 
@@ -27,12 +27,54 @@ O servidor fica disponível em `http://localhost:8080`. A primeira inicializaç�
 | `GET` | `/pontos` | Lista pontos paginados. Aceita `page`, `size` e `sort`; padrão de 20 itens, máximo de 50. |
 | `GET` | `/pontos/{id}` | Consulta um ponto pelo UUID; responde 404 quando não existe. |
 | `GET` | `/api/v1/pontos` | Lista todos os pontos para o CRUD da N2-1. |
+| `GET` | `/api/v1/pontos/paginado` | Busca pontos paginados por `nome` e/ou `bairro` (case-insensitive); padrão de 10 itens ordenados por nome. |
 | `GET` | `/api/v1/pontos/{id}` | Consulta um ponto pelo UUID; responde 404 quando não existe. |
 | `POST` | `/api/v1/pontos` | Cadastra um ponto; responde 201 ou 400 para dados inválidos. |
 | `PUT` | `/api/v1/pontos/{id}` | Atualiza um ponto; responde 404 se não existir ou 400 para dados inválidos. |
 | `DELETE` | `/api/v1/pontos/{id}` | Exclui um ponto; responde 204 quando concluído. |
 
 Os endpoints `/api/v1/pontos` recebem `nome`, `endereco`, `bairro`, `horario` e `tipo`; `tipo` deve ser `coleta` ou `distribuição`. O ID é gerado pela API.
+
+Exemplos de busca paginada (respostas resumidas):
+
+**Sem filtro** — retorna pontos em páginas de 10 itens, ordenados por nome:
+
+```text
+GET http://localhost:8080/api/v1/pontos/paginado
+```
+
+```json
+{
+  "content": [{"id": "uuid", "nome": "Ponto Bosque dos Buritis", "endereco": "Setor Oeste, Goiânia - GO", "bairro": "Setor Oeste", "horario": "Segunda a sexta, 8h às 17h", "tipo": "coleta"}],
+  "page": {"size": 10, "number": 0, "totalElements": 25, "totalPages": 3}
+}
+```
+
+**Filtrando por bairro** — filtros de nome e bairro podem ser combinados:
+
+```text
+GET http://localhost:8080/api/v1/pontos/paginado?bairro=Setor%20Bueno
+```
+
+```json
+{
+  "content": [{"id": "uuid", "nome": "Ponto Parque Vaca Brava", "endereco": "Setor Bueno, Goiânia - GO", "bairro": "Setor Bueno", "horario": "Segunda a sexta, 9h às 17h", "tipo": "distribuição"}],
+  "page": {"size": 10, "number": 0, "totalElements": 2, "totalPages": 1}
+}
+```
+
+**Solicitando a segunda página** — a numeração começa em zero; `sort` pode ser alterado pela URL (sem `sort`, a ordem padrão é por nome):
+
+```text
+GET http://localhost:8080/api/v1/pontos/paginado?page=1
+```
+
+```json
+{
+  "content": [{"id": "uuid", "nome": "Ponto Parque Areião", "endereco": "Setor Pedro Ludovico, Goiânia - GO", "bairro": "Setor Pedro Ludovico", "horario": "Terça e quinta, 8h às 16h", "tipo": "distribuição"}],
+  "page": {"size": 10, "number": 1, "totalElements": 25, "totalPages": 3}
+}
+```
 
 ```text
 GET http://localhost:8080/pontos
