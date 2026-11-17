@@ -4,9 +4,11 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.Getter;
 
 import java.util.UUID;
 
+@Getter
 @Entity
 @Table(name = "pontos")
 public class Ponto {
@@ -19,16 +21,20 @@ public class Ponto {
     @Column(nullable = false, length = 500)
     private String endereco;
 
+    private String bairro;
+
+    private String horario;
+
+    private String tipo;
+
     @Column(nullable = false)
     private String diasHorarios;
 
     @Column(nullable = false, length = 1000)
     private String recebeDistribui;
 
-    @Column(nullable = false)
     private Double latitude;
 
-    @Column(nullable = false)
     private Double longitude;
 
     protected Ponto() {
@@ -38,6 +44,9 @@ public class Ponto {
             UUID id,
             String nome,
             String endereco,
+            String bairro,
+            String horario,
+            String tipo,
             String diasHorarios,
             String recebeDistribui,
             Double latitude,
@@ -46,37 +55,46 @@ public class Ponto {
         this.id = id;
         this.nome = nome;
         this.endereco = endereco;
+        this.bairro = bairro;
+        this.horario = horario;
+        this.tipo = tipo;
         this.diasHorarios = diasHorarios;
         this.recebeDistribui = recebeDistribui;
         this.latitude = latitude;
         this.longitude = longitude;
     }
 
-    public UUID getId() {
-        return id;
+    public void atualizarDados(
+            String nome,
+            String endereco,
+            String bairro,
+            String horario,
+            String tipo
+    ) {
+        this.nome = nome;
+        this.endereco = endereco;
+        this.bairro = bairro;
+        this.horario = horario;
+        this.tipo = tipo;
+        this.diasHorarios = horario;
+        this.recebeDistribui = descricaoTipo(tipo);
     }
 
-    public String getNome() {
-        return nome;
+    public void completarCamposCrud() {
+        if (bairro == null || bairro.isBlank()) {
+            bairro = "Goiânia";
+        }
+        if (horario == null || horario.isBlank()) {
+            horario = diasHorarios;
+        }
+        if (tipo == null || tipo.isBlank()) {
+            tipo = "coleta";
+        }
     }
 
-    public String getEndereco() {
-        return endereco;
-    }
-
-    public String getDiasHorarios() {
-        return diasHorarios;
-    }
-
-    public String getRecebeDistribui() {
-        return recebeDistribui;
-    }
-
-    public Double getLatitude() {
-        return latitude;
-    }
-
-    public Double getLongitude() {
-        return longitude;
+    public static String descricaoTipo(String tipo) {
+        return "coleta".equals(tipo)
+                ? "Recebe doações para o Instituto Mão Amiga."
+                : "Distribui doações para as famílias atendidas.";
     }
 }

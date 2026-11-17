@@ -1,15 +1,19 @@
 package br.org.institutomaoamiga.api.service;
 
+import br.org.institutomaoamiga.api.dto.PontoAppResponseDTO;
 import br.org.institutomaoamiga.api.dto.PontoResponseDTO;
+import br.org.institutomaoamiga.api.dto.PontoRequestDTO;
 import br.org.institutomaoamiga.api.entity.Ponto;
 import br.org.institutomaoamiga.api.repository.PontoRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.UUID;
+import java.util.List;
 
 @Service
 public class PontoService {
@@ -19,18 +23,72 @@ public class PontoService {
         this.pontoRepository = pontoRepository;
     }
 
-    public Page<PontoResponseDTO> listar(Pageable pageable) {
+    public Page<PontoAppResponseDTO> listar(Pageable pageable) {
         return pontoRepository.findAll(pageable).map(this::toResponse);
     }
 
-    public PontoResponseDTO buscarPorId(UUID id) {
-        Ponto ponto = pontoRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Ponto não encontrado"));
-        return toResponse(ponto);
+    public PontoAppResponseDTO buscarPorId(UUID id) {
+        return toResponse(buscarEntidade(id));
     }
 
-    private PontoResponseDTO toResponse(Ponto ponto) {
-        return new PontoResponseDTO(
+    @Transactional(readOnly = true)
+    public List<PontoResponseDTO> listarTodos() {
+        return pontoRepository.findAll().stream()
+                .map(this::toCrudResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PontoResponseDTO buscarCrudPorId(UUID id) {
+        return toCrudResponse(buscarEntidade(id));
+    }
+
+    @Transactional
+    public PontoResponseDTO cadastrar(PontoRequestDTO request) {
+        Ponto ponto = new Ponto(
+                UUID.randomUUID(),
+                request.nome().trim(),
+                request.endereco().trim(),
+                request.bairro().trim(),
+                request.horario().trim(),
+                request.tipo(),
+                request.horario().trim(),
+                Ponto.descricaoTipo(request.tipo()),
+                null,
+                null
+        );
+        return toCrudResponse(pontoRepository.save(ponto));
+    }
+
+    @Transactional
+    public PontoResponseDTO atualizar(UUID id, PontoRequestDTO request) {
+        Ponto ponto = buscarEntidade(id);
+        ponto.atualizarDados(
+                request.nome().trim(),
+                request.endereco().trim(),
+                request.bairro().trim(),
+                request.horario().trim(),
+                request.tipo()
+        );
+        return toCrudResponse(pontoRepository.save(ponto));
+    }
+
+    @Transactional
+    public void excluir(UUID id) {
+        Ponto ponto = buscarEntidade(id);
+        pontoRepository.delete(ponto);
+    }
+
+    private Ponto buscarEntidade(UUID id) {
+        return pontoRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Ponto não encontrado"
+                ));
+    }
+
+    private PontoAppResponseDTO toResponse(Ponto ponto) {
+        return new PontoAppResponseDTO(
                 ponto.getId(),
                 ponto.getNome(),
                 ponto.getEndereco(),
@@ -38,6 +96,17 @@ public class PontoService {
                 ponto.getRecebeDistribui(),
                 ponto.getLatitude(),
                 ponto.getLongitude()
+        );
+    }
+
+    private PontoResponseDTO toCrudResponse(Ponto ponto) {
+        return new PontoResponseDTO(
+                ponto.getId(),
+                ponto.getNome(),
+                ponto.getEndereco(),
+                ponto.getBairro(),
+                ponto.getHorario(),
+                ponto.getTipo()
         );
     }
 }

@@ -6,9 +6,8 @@ public record PontoResponseDTO(
         UUID id,
         String nome,
         String endereco,
-        String diasHorarios,
-        String recebeDistribui,
-        Double latitude,
-        Double longitude
+        String bairro,
+        String horario,
+        String tipo
 ) {
 }
