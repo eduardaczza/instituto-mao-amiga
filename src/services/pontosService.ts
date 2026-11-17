@@ -29,6 +29,10 @@ function criarQuery(page: number, size: number, filtro = ''): string {
 }
 
 export const pontosService = {
+  listarTodos(): Promise<PontoCrud[]> {
+    return get<PontoCrud[]>('/api/v1/pontos');
+  },
+
   listar(page = 0, size = 20): Promise<Pagina<Ponto>> {
     return get<Pagina<Ponto>>(`/pontos?${criarQuery(page, size)}`);
   },

@@ -1,11 +1,11 @@
 # Instituto Mão Amiga
 
-Aplicativo em React Native, Expo e TypeScript para consultar pontos de coleta e registrar doações. A API Spring Boot deste repositório fornece os pontos e oferece endpoints CRUD para doações; no aplicativo, os registros de doação continuam salvos localmente no aparelho.
+Aplicativo em React Native, Expo e TypeScript para consultar pontos de coleta, salvar pontos favoritos neste dispositivo e registrar doações. O app e a API Spring Boot deste repositório comunicam-se pela API REST para consultar pontos e gerenciar doações.
 
 ## Requisitos
 
-- Node.js 20 ou superior e npm
-- Java 21
+- Node.js 20.19.4 ou superior e npm
+- Java 21 (JDK)
 - Maven 3.9 ou superior
 - Expo Go ou um emulador, para executar o app em dispositivo
 
@@ -194,7 +194,21 @@ npm run ios
 npm run web
 ```
 
-O app consulta a API pelo serviço `src/services/api.ts`. A URL padrão é `http://localhost:8080`; confirme que a API está acessível no navegador em `http://localhost:8080/pontos`. Para testar em um celular físico ou emulador Android, configure `EXPO_PUBLIC_API_URL` com o endereço IPv4 do computador na rede Wi-Fi, por exemplo `http://192.168.1.25:8080`, e reinicie o Expo. O celular e o computador devem estar na mesma rede, e a porta 8080 precisa estar acessível pelo firewall. Essa variável também pode ser definida em um arquivo `.env.local` na raiz do projeto.
+O app consulta a API pelo serviço `src/services/api.ts`. A URL padrão é `http://localhost:8080`; confirme que a API está acessível no navegador em `http://localhost:8080/pontos`. Para testar em um celular físico ou emulador Android, configure `EXPO_PUBLIC_API_URL` com o endereço IPv4 do computador na rede Wi-Fi, por exemplo `http://192.168.1.25:8080`, e reinicie o Expo. O celular e o computador devem estar na mesma rede, e a porta 8080 precisa estar acessível pelo firewall. Configure essa variável em `.env.local`, na raiz do projeto:
+
+```env
+EXPO_PUBLIC_API_URL=http://192.168.1.25:8080
+```
+
+Substitua o exemplo pelo IP local da máquina que está executando a API. Os IDs dos pontos favoritos são persistidos localmente no dispositivo com AsyncStorage.
+
+## Roteiro de apresentação (até 3 minutos)
+
+- **0:00–0:25 — Visão geral:** apresente a lista de pontos, a busca e a comunicação com a API Spring Boot.
+- **0:25–1:00 — Favoritos:** favorite um ponto, abra **Meus pontos** e mostre que ele pode ser removido dali; explique que a lista é salva localmente e continua disponível ao reabrir o app.
+- **1:00–1:45 — Detalhe e doações:** abra um ponto para mostrar os detalhes e registre uma doação selecionando o ponto de destino.
+- **1:45–2:30 — Histórico e CRUD:** filtre o histórico, abra uma doação, edite-a e mostre a confirmação antes de excluir.
+- **2:30–3:00 — API:** encerre mostrando os endpoints no Swagger e explique que a paginação, validações e persistência das doações são realizadas pela API.
 
 ## Estrutura
 
@@ -202,9 +216,10 @@ O app consulta a API pelo serviço `src/services/api.ts`. A URL padrão é `http
 .
 ├── api/                    # API Spring Boot, JPA e H2
 ├── src/
+│   ├── components/         # Componentes compartilhados
 │   ├── navigation/         # Tipos das rotas
 │   ├── screens/            # Telas do aplicativo
-│   ├── services/           # Cliente HTTP e persistência das doações
+│   ├── services/           # Cliente HTTP e serviços locais/API
 │   └── types/              # Tipos compartilhados da aplicação
 ├── App.tsx                 # Configuração da navegação
 └── package.json
