@@ -4,6 +4,7 @@ export type RootStackParamList = {
   FormularioPonto: { id?: string } | undefined;
   Cadastro: undefined;
   Historico: undefined;
+  MeusPontos: undefined;
   DetalheDoacao: { id: string };
   EditarDoacao: { id: string };
 };

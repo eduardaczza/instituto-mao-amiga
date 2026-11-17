@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   ActivityIndicator,
   FlatList,
   StyleSheet,
@@ -12,33 +13,12 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
+import PontoCard from '../components/PontoCard';
+import { pontosFavoritosService } from '../services/pontosFavoritosService';
 import { pontosService } from '../services/pontosService';
 import type { Ponto } from '../types/ponto';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Lista'>;
-
-function PontoItem({
-  ponto,
-  onPress,
-}: {
-  ponto: Ponto;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={onPress}
-      activeOpacity={0.75}
-      accessibilityRole="button"
-    >
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardBadge}>Ativo</Text>
-      </View>
-      <Text style={styles.nome}>{ponto.nome}</Text>
-      <Text style={styles.endereco}>📍 {ponto.endereco}</Text>
-    </TouchableOpacity>
-  );
-}
 
 export default function TelaListaPontos({ navigation }: Props) {
   const [pontos, setPontos] = useState<Ponto[]>([]);
@@ -46,6 +26,11 @@ export default function TelaListaPontos({ navigation }: Props) {
   const [carregando, setCarregando] = useState(true);
   const [carregandoMais, setCarregandoMais] = useState(false);
   const [erro, setErro] = useState('');
+  const [idsFavoritos, setIdsFavoritos] = useState<string[]>([]);
+  const [carregandoFavoritos, setCarregandoFavoritos] = useState(true);
+  const [favoritosEmAtualizacao, setFavoritosEmAtualizacao] = useState<
+    string[]
+  >([]);
   const [totalPontos, setTotalPontos] = useState(0);
   const [tentativa, setTentativa] = useState(0);
   const sequenciaRequisicao = useRef(0);
@@ -56,6 +41,7 @@ export default function TelaListaPontos({ navigation }: Props) {
   const paginaEmAndamento = useRef<{ sequencia: number; pagina: number } | null>(
     null
   );
+  const favoritosEmAtualizacaoRef = useRef(new Set<string>());
 
   const carregarPrimeiraPagina = useCallback(async (filtro: string) => {
     const sequencia = ++sequenciaRequisicao.current;
@@ -97,6 +83,39 @@ export default function TelaListaPontos({ navigation }: Props) {
     useCallback(() => {
       void carregarPrimeiraPagina(filtroAplicado.current);
     }, [carregarPrimeiraPagina, tentativa])
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      let telaAtiva = true;
+      setCarregandoFavoritos(true);
+      setIdsFavoritos([]);
+
+      async function carregarIdsFavoritos() {
+        try {
+          const ids = await pontosFavoritosService.listarIds();
+          if (telaAtiva) {
+            setIdsFavoritos(ids);
+          }
+        } catch {
+          if (telaAtiva) {
+            Alert.alert(
+              'Favoritos indisponíveis',
+              'Não foi possível carregar os favoritos salvos neste dispositivo.'
+            );
+          }
+        } finally {
+          if (telaAtiva) {
+            setCarregandoFavoritos(false);
+          }
+        }
+      }
+
+      void carregarIdsFavoritos();
+      return () => {
+        telaAtiva = false;
+      };
+    }, [])
   );
 
   useEffect(() => {
@@ -159,6 +178,32 @@ export default function TelaListaPontos({ navigation }: Props) {
     }
   };
 
+  const alternarFavorito = async (id: string) => {
+    if (
+      carregandoFavoritos ||
+      favoritosEmAtualizacaoRef.current.has(id)
+    ) {
+      return;
+    }
+
+    favoritosEmAtualizacaoRef.current.add(id);
+    setFavoritosEmAtualizacao([...favoritosEmAtualizacaoRef.current]);
+    try {
+      const ids = idsFavoritos.includes(id)
+        ? await pontosFavoritosService.remover(id)
+        : await pontosFavoritosService.adicionar(id);
+      setIdsFavoritos(ids);
+    } catch {
+      Alert.alert(
+        'Não foi possível atualizar favoritos',
+        'Os favoritos não foram alterados. Tente novamente.'
+      );
+    } finally {
+      favoritosEmAtualizacaoRef.current.delete(id);
+      setFavoritosEmAtualizacao([...favoritosEmAtualizacaoRef.current]);
+    }
+  };
+
   return (
     <View style={styles.wrapper}>
       <FlatList
@@ -187,10 +232,16 @@ export default function TelaListaPontos({ navigation }: Props) {
           </View>
         }
         renderItem={({ item }) => (
-          <PontoItem
+          <PontoCard
             ponto={item}
+            favorito={idsFavoritos.includes(item.id)}
             onPress={() =>
               navigation.navigate('Detalhe', { id: item.id })
+            }
+            onToggleFavorito={() => void alternarFavorito(item.id)}
+            favoritoDesabilitado={
+              carregandoFavoritos ||
+              favoritosEmAtualizacao.includes(item.id)
             }
           />
         )}
@@ -254,6 +305,15 @@ export default function TelaListaPontos({ navigation }: Props) {
         accessibilityRole="button"
       >
         <Text style={styles.buttonNovoPontoText}>+ Cadastrar ponto</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.buttonFavoritos}
+        onPress={() => navigation.navigate('MeusPontos')}
+        activeOpacity={0.9}
+        accessibilityRole="button"
+      >
+        <Text style={styles.buttonFavoritosText}>Meus pontos</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -332,43 +392,6 @@ const styles = StyleSheet.create({
     color: '#1A2B4C',
     fontSize: 15,
   },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    marginBottom: 14,
-    minHeight: 44,
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#EDEFF3',
-    boxShadow: '0px 4px 12px rgba(26, 43, 76, 0.08)',
-    elevation: 3,
-  },
-  cardHeader: {
-    marginBottom: 8,
-  },
-  cardBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#E8F5EE',
-    color: '#1F7A58',
-    fontSize: 10,
-    fontWeight: '700',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  nome: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1A2B4C',
-    marginBottom: 6,
-  },
-  endereco: {
-    fontSize: 13,
-    color: '#5A6B82',
-    lineHeight: 18,
-  },
   estado: {
     alignItems: 'center',
     paddingHorizontal: 12,
@@ -439,6 +462,23 @@ const styles = StyleSheet.create({
   },
   buttonNovoPontoText: {
     color: '#1F7A58',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  buttonFavoritos: {
+    backgroundColor: '#FFF8E7',
+    borderRadius: 14,
+    paddingVertical: 15,
+    marginHorizontal: 20,
+    marginBottom: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: '#F0D99A',
+  },
+  buttonFavoritosText: {
+    color: '#805B00',
     fontSize: 16,
     fontWeight: '700',
   },
