@@ -31,18 +31,17 @@ function statusDoErro(error: unknown): number | undefined {
 }
 
 export default function TelaCadastroDoacao({ navigation, route }: Props) {
-  const doacaoEmEdicao =
-    route.name === 'EditarDoacao' ? route.params?.doacao : undefined;
-  const modoEdicao = doacaoEmEdicao !== undefined;
-  const [tipoItem, setTipoItem] = useState(doacaoEmEdicao?.tipoItem ?? '');
-  const [quantidade, setQuantidade] = useState(
-    doacaoEmEdicao ? String(doacaoEmEdicao.quantidade) : ''
-  );
-  const [pontoDestino, setPontoDestino] = useState(
-    doacaoEmEdicao?.pontoDestino ?? ''
-  );
+  const doacaoId = route.name === 'EditarDoacao' ? route.params.id : undefined;
+  const modoEdicao = doacaoId !== undefined;
+  const [tipoItem, setTipoItem] = useState('');
+  const [quantidade, setQuantidade] = useState('');
+  const [pontoDestino, setPontoDestino] = useState('');
   const [erroQuantidade, setErroQuantidade] = useState('');
   const [carregandoDoacao, setCarregandoDoacao] = useState(modoEdicao);
+  const [edicaoCarregada, setEdicaoCarregada] = useState(!modoEdicao);
+  const [erroCarregamentoEdicao, setErroCarregamentoEdicao] = useState(false);
+  const [tentativaCarregamentoEdicao, setTentativaCarregamentoEdicao] =
+    useState(0);
   const [seletorPontosVisivel, setSeletorPontosVisivel] = useState(false);
   const [feedbackVisivel, setFeedbackVisivel] = useState(false);
   const [cadastroSalvo, setCadastroSalvo] = useState(false);
@@ -53,27 +52,41 @@ export default function TelaCadastroDoacao({ navigation, route }: Props) {
   const [tentativaPontos, setTentativaPontos] = useState(0);
 
   useEffect(() => {
-    if (!doacaoEmEdicao) {
+    const id = doacaoId;
+    if (id === undefined) {
       return;
     }
 
-    const doacaoId = doacaoEmEdicao.id;
     let telaAtiva = true;
     setCarregandoDoacao(true);
+    setEdicaoCarregada(false);
+    setErroCarregamentoEdicao(false);
 
-    async function carregarDoacao() {
+    async function carregarDoacao(idDoacao: string) {
       try {
-        const doacao = await doacoesService.buscarPorId(doacaoId);
+        const doacao = await doacoesService.buscarPorId(idDoacao);
         if (telaAtiva) {
           setTipoItem(doacao.tipoItem);
           setQuantidade(String(doacao.quantidade));
           setPontoDestino(doacao.pontoDestino);
+          setEdicaoCarregada(true);
         }
-      } catch {
+      } catch (error) {
         if (telaAtiva) {
+          setEdicaoCarregada(false);
+          setErroCarregamentoEdicao(true);
+          const status = statusDoErro(error);
           Alert.alert(
-            'Não foi possível atualizar a doação',
-            'Os dados já carregados foram mantidos. Verifique a conexão com a API.'
+            status === 0
+              ? 'API indisponível'
+              : status === 404
+                ? 'Doação não encontrada'
+                : 'Não foi possível carregar a doação',
+            status === 0
+              ? 'Não foi possível conectar à API. A edição não foi iniciada.'
+              : status === 404
+                ? 'Esta doação não está mais disponível para edição.'
+                : 'Verifique a conexão e tente novamente.'
           );
         }
       } finally {
@@ -83,11 +96,11 @@ export default function TelaCadastroDoacao({ navigation, route }: Props) {
       }
     }
 
-    void carregarDoacao();
+    void carregarDoacao(id);
     return () => {
       telaAtiva = false;
     };
-  }, [doacaoEmEdicao?.id]);
+  }, [doacaoId, tentativaCarregamentoEdicao]);
 
   useEffect(() => {
     if (!seletorPontosVisivel) {
@@ -155,8 +168,8 @@ export default function TelaCadastroDoacao({ navigation, route }: Props) {
 
     setSalvando(true);
     try {
-      if (doacaoEmEdicao) {
-        await doacoesService.editar(doacaoEmEdicao.id, doacao);
+      if (doacaoId) {
+        await doacoesService.editar(doacaoId, doacao);
       } else {
         await doacoesService.cadastrar(doacao);
       }
@@ -215,92 +228,134 @@ export default function TelaCadastroDoacao({ navigation, route }: Props) {
           </Text>
         </View>
 
-        <View style={styles.formCard}>
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Tipo do item</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ex.: roupas, alimentos, brinquedos"
-              placeholderTextColor="#5A6B82"
-              value={tipoItem}
-              onChangeText={setTipoItem}
-              autoCapitalize="words"
-            />
+        {modoEdicao && !edicaoCarregada ? (
+          <View style={styles.formCard}>
+            {carregandoDoacao ? (
+              <View style={styles.estadoEdicao}>
+                <ActivityIndicator size="large" color="#1A2B4C" />
+                <Text style={styles.textoEstadoEdicao}>
+                  Carregando dados da doação...
+                </Text>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.erroEstadoEdicao}>
+                  {erroCarregamentoEdicao
+                    ? 'Não foi possível carregar os dados para edição.'
+                    : 'Doação não encontrada.'}
+                </Text>
+                <TouchableOpacity
+                  style={styles.botaoTentarEdicao}
+                  onPress={() =>
+                    setTentativaCarregamentoEdicao((tentativa) => tentativa + 1)
+                  }
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.textoBotaoTentarEdicao}>
+                    Tentar novamente
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
+        ) : (
+          <>
+            <View style={styles.formCard}>
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Tipo do item</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Ex.: roupas, alimentos, brinquedos"
+                  placeholderTextColor="#5A6B82"
+                  value={tipoItem}
+                  onChangeText={setTipoItem}
+                  autoCapitalize="words"
+                />
+              </View>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Quantidade</Text>
-            <TextInput
-              style={[styles.input, erroQuantidade ? styles.inputError : null]}
-              placeholder="Ex.: 12"
-              placeholderTextColor="#5A6B82"
-              value={quantidade}
-              onChangeText={(texto) => {
-                setQuantidade(texto);
-                if (
-                  texto.trim() &&
-                  (!/^\d+$/.test(texto.trim()) || Number(texto.trim()) <= 0)
-                ) {
-                  setErroQuantidade(
-                    'Digite uma quantidade inteira maior que zero.'
-                  );
-                } else {
-                  setErroQuantidade('');
-                }
-              }}
-              keyboardType="numeric"
-              maxLength={6}
-            />
-            {erroQuantidade ? <Text style={styles.errorText}>{erroQuantidade}</Text> : null}
-          </View>
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Quantidade</Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    erroQuantidade ? styles.inputError : null,
+                  ]}
+                  placeholder="Ex.: 12"
+                  placeholderTextColor="#5A6B82"
+                  value={quantidade}
+                  onChangeText={(texto) => {
+                    setQuantidade(texto);
+                    if (
+                      texto.trim() &&
+                      (!/^\d+$/.test(texto.trim()) ||
+                        Number(texto.trim()) <= 0)
+                    ) {
+                      setErroQuantidade(
+                        'Digite uma quantidade inteira maior que zero.'
+                      );
+                    } else {
+                      setErroQuantidade('');
+                    }
+                  }}
+                  keyboardType="numeric"
+                  maxLength={6}
+                />
+                {erroQuantidade ? (
+                  <Text style={styles.errorText}>{erroQuantidade}</Text>
+                ) : null}
+              </View>
 
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Ponto de destino</Text>
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Ponto de destino</Text>
+                <TouchableOpacity
+                  style={styles.seletorPonto}
+                  onPress={() => setSeletorPontosVisivel(true)}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    pontoDestino || 'Selecionar ponto de coleta'
+                  }
+                >
+                  <Text
+                    style={
+                      pontoDestino
+                        ? styles.textoPontoSelecionado
+                        : styles.placeholderPonto
+                    }
+                  >
+                    {pontoDestino || 'Selecione um ponto de coleta'}
+                  </Text>
+                  <Text style={styles.setaSeletor}>⌄</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             <TouchableOpacity
-              style={styles.seletorPonto}
-              onPress={() => setSeletorPontosVisivel(true)}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel={
-                pontoDestino || 'Selecionar ponto de coleta'
-              }
+              style={styles.button}
+              onPress={handleEnviar}
+              disabled={salvando || (modoEdicao && !edicaoCarregada)}
+              activeOpacity={0.9}
             >
-              <Text
-                style={
-                  pontoDestino ? styles.textoPontoSelecionado : styles.placeholderPonto
-                }
-              >
-                {pontoDestino || 'Selecione um ponto de coleta'}
-              </Text>
-              <Text style={styles.setaSeletor}>⌄</Text>
+              {salvando ? (
+                <Text style={styles.buttonText}>Salvando...</Text>
+              ) : (
+                <Text style={styles.buttonText}>
+                  {modoEdicao ? 'Salvar alterações' : 'Enviar cadastro'}
+                </Text>
+              )}
             </TouchableOpacity>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleEnviar}
-          disabled={salvando || carregandoDoacao}
-          activeOpacity={0.9}
-        >
-          {salvando ? (
-            <Text style={styles.buttonText}>Salvando...</Text>
-          ) : (
-            <Text style={styles.buttonText}>
-              {modoEdicao ? 'Salvar alterações' : 'Enviar cadastro'}
-            </Text>
-          )}
-        </TouchableOpacity>
-        {modoEdicao && (
-          <TouchableOpacity
-            style={styles.buttonCancelar}
-            onPress={() => navigation.goBack()}
-            disabled={salvando}
-            activeOpacity={0.9}
-            accessibilityRole="button"
-          >
-            <Text style={styles.buttonCancelarText}>Cancelar edição</Text>
-          </TouchableOpacity>
+            {modoEdicao && (
+              <TouchableOpacity
+                style={styles.buttonCancelar}
+                onPress={() => navigation.goBack()}
+                disabled={salvando}
+                activeOpacity={0.9}
+                accessibilityRole="button"
+              >
+                <Text style={styles.buttonCancelarText}>Cancelar edição</Text>
+              </TouchableOpacity>
+            )}
+          </>
         )}
       </ScrollView>
       <Modal
@@ -612,6 +667,35 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     textAlign: 'center',
     marginBottom: 12,
+  },
+  estadoEdicao: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  textoEstadoEdicao: {
+    color: '#5A6B82',
+    fontSize: 14,
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  erroEstadoEdicao: {
+    color: '#B42318',
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: 'center',
+    marginBottom: 14,
+  },
+  botaoTentarEdicao: {
+    minHeight: 44,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#1A2B4C',
+    borderRadius: 10,
+  },
+  textoBotaoTentarEdicao: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   botaoTentarPontos: {
     minHeight: 44,

@@ -237,7 +237,7 @@ export default function TelaHistoricoDoacoes({ navigation }: Props) {
           <DoacaoItem
             doacao={item}
             onPress={() =>
-              navigation.navigate('DetalheDoacao', { doacao: item })
+              navigation.navigate('DetalheDoacao', { id: item.id })
             }
           />
         )}
