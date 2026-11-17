@@ -1,17 +1,17 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
   type ViewStyle,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { pontosService, type Pagina } from '../services/pontosService';
+import { pontosService } from '../services/pontosService';
 import type { Ponto } from '../types/ponto';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Lista'>;
@@ -41,82 +41,118 @@ function PontoItem({
 
 export default function TelaListaPontos({ navigation }: Props) {
   const [pontos, setPontos] = useState<Ponto[]>([]);
+  const [busca, setBusca] = useState('');
   const [carregando, setCarregando] = useState(true);
   const [carregandoMais, setCarregandoMais] = useState(false);
   const [erro, setErro] = useState('');
-  const [paginaAtual, setPaginaAtual] = useState(-1);
-  const [totalPaginas, setTotalPaginas] = useState(0);
   const [totalPontos, setTotalPontos] = useState(0);
   const [tentativa, setTentativa] = useState(0);
-  const carregamentoEmAndamento = useRef(false);
-
-  const atualizarLista = useCallback(
-    (resposta: Pagina<Ponto>, anexar: boolean) => {
-      setPontos((atuais) =>
-        anexar ? [...atuais, ...resposta.content] : resposta.content
-      );
-      setPaginaAtual(resposta.page.number);
-      setTotalPaginas(resposta.page.totalPages);
-      setTotalPontos(resposta.page.totalElements);
-    },
-    []
+  const sequenciaRequisicao = useRef(0);
+  const paginaAtual = useRef(-1);
+  const totalPaginas = useRef(0);
+  const filtroAplicado = useRef('');
+  const carregandoRef = useRef(true);
+  const paginaEmAndamento = useRef<{ sequencia: number; pagina: number } | null>(
+    null
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      let telaAtiva = true;
-      setCarregando(true);
-      setErro('');
-      setPaginaAtual(-1);
-      carregamentoEmAndamento.current = false;
+  const carregarPrimeiraPagina = useCallback(async (filtro: string) => {
+    const sequencia = ++sequenciaRequisicao.current;
+    paginaAtual.current = -1;
+    totalPaginas.current = 0;
+    paginaEmAndamento.current = null;
+    carregandoRef.current = true;
+    setPontos([]);
+    setCarregando(true);
+    setCarregandoMais(false);
+    setErro('');
+    setTotalPontos(0);
 
-      async function carregarPrimeiraPagina() {
-        try {
-          const resposta = await pontosService.listar(0);
-          if (telaAtiva) {
-            atualizarLista(resposta, false);
-          }
-        } catch {
-          if (telaAtiva) {
-            setErro(
-              'Não foi possível carregar os pontos. Verifique se a API está em execução e tente novamente.'
-            );
-          }
-        } finally {
-          if (telaAtiva) {
-            setCarregando(false);
-          }
-        }
+    try {
+      const resposta = filtro
+        ? await pontosService.buscarPagina(filtro, 0)
+        : await pontosService.listar(0);
+      if (sequencia === sequenciaRequisicao.current) {
+        setPontos(resposta.content);
+        paginaAtual.current = resposta.page.number;
+        totalPaginas.current = resposta.page.totalPages;
+        setTotalPontos(resposta.page.totalElements);
       }
+    } catch {
+      if (sequencia === sequenciaRequisicao.current) {
+        setErro(
+          'Não foi possível carregar os pontos. Verifique se a API está em execução e tente novamente.'
+        );
+      }
+    } finally {
+      if (sequencia === sequenciaRequisicao.current) {
+        carregandoRef.current = false;
+        setCarregando(false);
+      }
+    }
+  }, []);
 
-      void carregarPrimeiraPagina();
-      return () => {
-        telaAtiva = false;
-      };
-    }, [atualizarLista, tentativa])
-  );
+  useEffect(() => {
+    void carregarPrimeiraPagina(filtroAplicado.current);
+  }, [carregarPrimeiraPagina, tentativa]);
+
+  useEffect(() => {
+    const filtro = busca.trim();
+    if (filtro === filtroAplicado.current) {
+      return;
+    }
+
+    const temporizador = setTimeout(() => {
+      filtroAplicado.current = filtro;
+      void carregarPrimeiraPagina(filtro);
+    }, 350);
+
+    return () => clearTimeout(temporizador);
+  }, [busca, carregarPrimeiraPagina]);
 
   const carregarProximaPagina = async (repetir = false) => {
+    const sequencia = sequenciaRequisicao.current;
+    const proximaPagina = paginaAtual.current + 1;
+    const paginaSolicitada = paginaEmAndamento.current;
     if (
-      carregamentoEmAndamento.current ||
-      carregando ||
+      carregandoRef.current ||
+      (paginaSolicitada?.sequencia === sequencia &&
+        paginaSolicitada.pagina === proximaPagina) ||
       (erro !== '' && !repetir) ||
-      paginaAtual + 1 >= totalPaginas
+      proximaPagina >= totalPaginas.current
     ) {
       return;
     }
 
-    carregamentoEmAndamento.current = true;
+    paginaEmAndamento.current = { sequencia, pagina: proximaPagina };
     setCarregandoMais(true);
     try {
-      const resposta = await pontosService.listar(paginaAtual + 1);
-      atualizarLista(resposta, true);
-      setErro('');
+      const filtro = filtroAplicado.current;
+      const resposta = filtro
+        ? await pontosService.buscarPagina(filtro, proximaPagina)
+        : await pontosService.listar(proximaPagina);
+      if (sequencia === sequenciaRequisicao.current) {
+        setPontos((atuais) => {
+          const idsExistentes = new Set(atuais.map((ponto) => ponto.id));
+          return [
+            ...atuais,
+            ...resposta.content.filter((ponto) => !idsExistentes.has(ponto.id)),
+          ];
+        });
+        paginaAtual.current = resposta.page.number;
+        totalPaginas.current = resposta.page.totalPages;
+        setTotalPontos(resposta.page.totalElements);
+        setErro('');
+      }
     } catch {
-      setErro('Não foi possível carregar mais pontos.');
+      if (sequencia === sequenciaRequisicao.current) {
+        setErro('Não foi possível carregar mais pontos.');
+      }
     } finally {
-      carregamentoEmAndamento.current = false;
-      setCarregandoMais(false);
+      if (sequencia === sequenciaRequisicao.current) {
+        paginaEmAndamento.current = null;
+        setCarregandoMais(false);
+      }
     }
   };
 
@@ -136,13 +172,22 @@ export default function TelaListaPontos({ navigation }: Props) {
             <Text style={styles.subtitulo}>
               {totalPontos} locais cadastrados
             </Text>
+            <TextInput
+              style={styles.inputBusca}
+              placeholder="Buscar por nome do ponto"
+              placeholderTextColor="#7A8798"
+              value={busca}
+              onChangeText={setBusca}
+              accessibilityLabel="Buscar pontos de coleta"
+              returnKeyType="search"
+            />
           </View>
         }
         renderItem={({ item }) => (
           <PontoItem
             ponto={item}
             onPress={() =>
-              navigation.navigate('Detalhe', { pontoId: item.id })
+              navigation.navigate('Detalhe', { id: item.id })
             }
           />
         )}
@@ -190,7 +235,9 @@ export default function TelaListaPontos({ navigation }: Props) {
           ) : (
             <View style={styles.estado}>
               <Text style={styles.mensagemEstado}>
-                Nenhum ponto de coleta cadastrado.
+                {filtroAplicado.current
+                  ? 'Nenhum ponto corresponde à busca.'
+                  : 'Nenhum ponto de coleta cadastrado.'}
               </Text>
             </View>
           )
@@ -261,6 +308,17 @@ const styles = StyleSheet.create({
   subtitulo: {
     fontSize: 14,
     color: '#5A6B82',
+  },
+  inputBusca: {
+    minHeight: 46,
+    marginTop: 14,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D9E2EC',
+    backgroundColor: '#F8FAFD',
+    color: '#1A2B4C',
+    fontSize: 15,
   },
   card: {
     backgroundColor: '#FFFFFF',

@@ -27,6 +27,11 @@ public class PontoService {
         return pontoRepository.findAll(pageable).map(this::toResponse);
     }
 
+    public Page<PontoAppResponseDTO> buscarPorNome(String nome, Pageable pageable) {
+        return pontoRepository.buscarPaginado(normalizarFiltro(nome), null, pageable)
+                .map(this::toResponse);
+    }
+
     public Page<PontoResponseDTO> listarPaginado(String nome, String bairro, Pageable pageable) {
         String nomeNormalizado = normalizarFiltro(nome);
         String bairroNormalizado = normalizarFiltro(bairro);

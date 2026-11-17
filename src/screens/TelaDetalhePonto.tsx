@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, View, Text, StyleSheet, ScrollView } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { ApiError } from '../services/api';
 import { pontosService } from '../services/pontosService';
 import type { Ponto } from '../types/ponto';
 
@@ -32,7 +31,7 @@ function DetalhePonto({ ponto }: { ponto: Ponto }) {
 }
 
 export default function TelaDetalhePonto({ route }: Props) {
-  const { pontoId } = route.params;
+  const { id } = route.params;
   const [ponto, setPonto] = useState<Ponto | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [mensagemErro, setMensagemErro] = useState('');
@@ -44,13 +43,17 @@ export default function TelaDetalhePonto({ route }: Props) {
       setCarregando(true);
       setMensagemErro('');
       try {
-        const resultado = await pontosService.buscarPorId(pontoId);
+        const resultado = await pontosService.buscarPorId(id);
         if (telaAtiva) {
           setPonto(resultado);
         }
       } catch (error) {
         if (telaAtiva) {
-          if (error instanceof ApiError && error.status === 404) {
+          if (
+            error instanceof Error &&
+            'status' in error &&
+            error.status === 404
+          ) {
             setMensagemErro('Ponto não encontrado.');
           } else {
             setMensagemErro(
@@ -69,7 +72,7 @@ export default function TelaDetalhePonto({ route }: Props) {
     return () => {
       telaAtiva = false;
     };
-  }, [pontoId]);
+  }, [id]);
 
   if (carregando) {
     return (
