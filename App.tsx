@@ -2,9 +2,11 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import TelaListaPontos from './src/screens/TelaListaPontos';
 import TelaDetalhePonto from './src/screens/TelaDetalhePonto';
+import TelaFormularioPonto from './src/screens/TelaFormularioPonto';
 import TelaFormularioDoacao from './src/screens/TelaCadastroDoacao';
 import TelaHistoricoDoacoes from './src/screens/TelaHistoricoDoacoes';
 import TelaDetalheDoacao from './src/screens/TelaDetalheDoacao';
+import TelaMeusPontos from './src/screens/TelaMeusPontos';
 import type { RootStackParamList } from './src/navigation/types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -24,6 +26,11 @@ export default function App() {
           options={{ title: 'Detalhe do ponto' }}
         />
         <Stack.Screen
+          name="FormularioPonto"
+          component={TelaFormularioPonto}
+          options={{ title: 'Ponto de coleta' }}
+        />
+        <Stack.Screen
           name="Cadastro"
           component={TelaFormularioDoacao}
           options={{ title: 'Cadastro de doação' }}
@@ -37,6 +44,11 @@ export default function App() {
           name="Historico"
           component={TelaHistoricoDoacoes}
           options={{ title: 'Minhas doações' }}
+        />
+        <Stack.Screen
+          name="MeusPontos"
+          component={TelaMeusPontos}
+          options={{ title: 'Meus pontos' }}
         />
         <Stack.Screen
           name="DetalheDoacao"

@@ -1,9 +1,11 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
   type ViewStyle,
@@ -11,112 +13,194 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { pontosService, type Pagina } from '../services/pontosService';
+import PontoCard from '../components/PontoCard';
+import { pontosFavoritosService } from '../services/pontosFavoritosService';
+import { pontosService } from '../services/pontosService';
 import type { Ponto } from '../types/ponto';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Lista'>;
 
-function PontoItem({
-  ponto,
-  onPress,
-}: {
-  ponto: Ponto;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={onPress}
-      activeOpacity={0.75}
-      accessibilityRole="button"
-    >
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardBadge}>Ativo</Text>
-      </View>
-      <Text style={styles.nome}>{ponto.nome}</Text>
-      <Text style={styles.endereco}>📍 {ponto.endereco}</Text>
-    </TouchableOpacity>
-  );
-}
-
 export default function TelaListaPontos({ navigation }: Props) {
   const [pontos, setPontos] = useState<Ponto[]>([]);
+  const [busca, setBusca] = useState('');
   const [carregando, setCarregando] = useState(true);
   const [carregandoMais, setCarregandoMais] = useState(false);
   const [erro, setErro] = useState('');
-  const [paginaAtual, setPaginaAtual] = useState(-1);
-  const [totalPaginas, setTotalPaginas] = useState(0);
+  const [idsFavoritos, setIdsFavoritos] = useState<string[]>([]);
+  const [carregandoFavoritos, setCarregandoFavoritos] = useState(true);
+  const [favoritosEmAtualizacao, setFavoritosEmAtualizacao] = useState<
+    string[]
+  >([]);
   const [totalPontos, setTotalPontos] = useState(0);
   const [tentativa, setTentativa] = useState(0);
-  const carregamentoEmAndamento = useRef(false);
+  const sequenciaRequisicao = useRef(0);
+  const paginaAtual = useRef(-1);
+  const totalPaginas = useRef(0);
+  const filtroAplicado = useRef('');
+  const carregandoRef = useRef(true);
+  const paginaEmAndamento = useRef<{ sequencia: number; pagina: number } | null>(
+    null
+  );
+  const favoritosEmAtualizacaoRef = useRef(new Set<string>());
 
-  const atualizarLista = useCallback(
-    (resposta: Pagina<Ponto>, anexar: boolean) => {
-      setPontos((atuais) =>
-        anexar ? [...atuais, ...resposta.content] : resposta.content
-      );
-      setPaginaAtual(resposta.page.number);
-      setTotalPaginas(resposta.page.totalPages);
-      setTotalPontos(resposta.page.totalElements);
-    },
-    []
+  const carregarPrimeiraPagina = useCallback(async (filtro: string) => {
+    const sequencia = ++sequenciaRequisicao.current;
+    paginaAtual.current = -1;
+    totalPaginas.current = 0;
+    paginaEmAndamento.current = null;
+    carregandoRef.current = true;
+    setPontos([]);
+    setCarregando(true);
+    setCarregandoMais(false);
+    setErro('');
+    setTotalPontos(0);
+
+    try {
+      const resposta = filtro
+        ? await pontosService.buscarPagina(filtro, 0)
+        : await pontosService.listar(0);
+      if (sequencia === sequenciaRequisicao.current) {
+        setPontos(resposta.content);
+        paginaAtual.current = resposta.page.number;
+        totalPaginas.current = resposta.page.totalPages;
+        setTotalPontos(resposta.page.totalElements);
+      }
+    } catch {
+      if (sequencia === sequenciaRequisicao.current) {
+        setErro(
+          'Não foi possível carregar os pontos. Verifique se a API está em execução e tente novamente.'
+        );
+      }
+    } finally {
+      if (sequencia === sequenciaRequisicao.current) {
+        carregandoRef.current = false;
+        setCarregando(false);
+      }
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void carregarPrimeiraPagina(filtroAplicado.current);
+    }, [carregarPrimeiraPagina, tentativa])
   );
 
   useFocusEffect(
     useCallback(() => {
       let telaAtiva = true;
-      setCarregando(true);
-      setErro('');
-      setPaginaAtual(-1);
-      carregamentoEmAndamento.current = false;
+      setCarregandoFavoritos(true);
+      setIdsFavoritos([]);
 
-      async function carregarPrimeiraPagina() {
+      async function carregarIdsFavoritos() {
         try {
-          const resposta = await pontosService.listar(0);
+          const ids = await pontosFavoritosService.listarIds();
           if (telaAtiva) {
-            atualizarLista(resposta, false);
+            setIdsFavoritos(ids);
           }
         } catch {
           if (telaAtiva) {
-            setErro(
-              'Não foi possível carregar os pontos. Verifique se a API está em execução e tente novamente.'
+            Alert.alert(
+              'Favoritos indisponíveis',
+              'Não foi possível carregar os favoritos salvos neste dispositivo.'
             );
           }
         } finally {
           if (telaAtiva) {
-            setCarregando(false);
+            setCarregandoFavoritos(false);
           }
         }
       }
 
-      void carregarPrimeiraPagina();
+      void carregarIdsFavoritos();
       return () => {
         telaAtiva = false;
       };
-    }, [atualizarLista, tentativa])
+    }, [])
   );
 
+  useEffect(() => {
+    const filtro = busca.trim();
+    if (filtro === filtroAplicado.current) {
+      return;
+    }
+
+    const temporizador = setTimeout(() => {
+      filtroAplicado.current = filtro;
+      void carregarPrimeiraPagina(filtro);
+    }, 350);
+
+    return () => clearTimeout(temporizador);
+  }, [busca, carregarPrimeiraPagina]);
+
   const carregarProximaPagina = async (repetir = false) => {
+    const sequencia = sequenciaRequisicao.current;
+    const proximaPagina = paginaAtual.current + 1;
+    const paginaSolicitada = paginaEmAndamento.current;
     if (
-      carregamentoEmAndamento.current ||
-      carregando ||
+      carregandoRef.current ||
+      (paginaSolicitada?.sequencia === sequencia &&
+        paginaSolicitada.pagina === proximaPagina) ||
       (erro !== '' && !repetir) ||
-      paginaAtual + 1 >= totalPaginas
+      proximaPagina >= totalPaginas.current
     ) {
       return;
     }
 
-    carregamentoEmAndamento.current = true;
+    paginaEmAndamento.current = { sequencia, pagina: proximaPagina };
     setCarregandoMais(true);
     try {
-      const resposta = await pontosService.listar(paginaAtual + 1);
-      atualizarLista(resposta, true);
-      setErro('');
+      const filtro = filtroAplicado.current;
+      const resposta = filtro
+        ? await pontosService.buscarPagina(filtro, proximaPagina)
+        : await pontosService.listar(proximaPagina);
+      if (sequencia === sequenciaRequisicao.current) {
+        setPontos((atuais) => {
+          const idsExistentes = new Set(atuais.map((ponto) => ponto.id));
+          return [
+            ...atuais,
+            ...resposta.content.filter((ponto) => !idsExistentes.has(ponto.id)),
+          ];
+        });
+        paginaAtual.current = resposta.page.number;
+        totalPaginas.current = resposta.page.totalPages;
+        setTotalPontos(resposta.page.totalElements);
+        setErro('');
+      }
     } catch {
-      setErro('Não foi possível carregar mais pontos.');
+      if (sequencia === sequenciaRequisicao.current) {
+        setErro('Não foi possível carregar mais pontos.');
+      }
     } finally {
-      carregamentoEmAndamento.current = false;
-      setCarregandoMais(false);
+      if (sequencia === sequenciaRequisicao.current) {
+        paginaEmAndamento.current = null;
+        setCarregandoMais(false);
+      }
+    }
+  };
+
+  const alternarFavorito = async (id: string) => {
+    if (
+      carregandoFavoritos ||
+      favoritosEmAtualizacaoRef.current.has(id)
+    ) {
+      return;
+    }
+
+    favoritosEmAtualizacaoRef.current.add(id);
+    setFavoritosEmAtualizacao([...favoritosEmAtualizacaoRef.current]);
+    try {
+      const ids = idsFavoritos.includes(id)
+        ? await pontosFavoritosService.remover(id)
+        : await pontosFavoritosService.adicionar(id);
+      setIdsFavoritos(ids);
+    } catch {
+      Alert.alert(
+        'Não foi possível atualizar favoritos',
+        'Os favoritos não foram alterados. Tente novamente.'
+      );
+    } finally {
+      favoritosEmAtualizacaoRef.current.delete(id);
+      setFavoritosEmAtualizacao([...favoritosEmAtualizacaoRef.current]);
     }
   };
 
@@ -136,13 +220,28 @@ export default function TelaListaPontos({ navigation }: Props) {
             <Text style={styles.subtitulo}>
               {totalPontos} locais cadastrados
             </Text>
+            <TextInput
+              style={styles.inputBusca}
+              placeholder="Buscar por nome do ponto"
+              placeholderTextColor="#7A8798"
+              value={busca}
+              onChangeText={setBusca}
+              accessibilityLabel="Buscar pontos de coleta"
+              returnKeyType="search"
+            />
           </View>
         }
         renderItem={({ item }) => (
-          <PontoItem
+          <PontoCard
             ponto={item}
+            favorito={idsFavoritos.includes(item.id)}
             onPress={() =>
-              navigation.navigate('Detalhe', { pontoId: item.id })
+              navigation.navigate('Detalhe', { id: item.id })
+            }
+            onToggleFavorito={() => void alternarFavorito(item.id)}
+            favoritoDesabilitado={
+              carregandoFavoritos ||
+              favoritosEmAtualizacao.includes(item.id)
             }
           />
         )}
@@ -190,12 +289,32 @@ export default function TelaListaPontos({ navigation }: Props) {
           ) : (
             <View style={styles.estado}>
               <Text style={styles.mensagemEstado}>
-                Nenhum ponto de coleta cadastrado.
+                {filtroAplicado.current
+                  ? 'Nenhum ponto corresponde à busca.'
+                  : 'Nenhum ponto de coleta cadastrado.'}
               </Text>
             </View>
           )
         }
       />
+
+      <TouchableOpacity
+        style={styles.buttonNovoPonto}
+        onPress={() => navigation.navigate('FormularioPonto')}
+        activeOpacity={0.9}
+        accessibilityRole="button"
+      >
+        <Text style={styles.buttonNovoPontoText}>+ Cadastrar ponto</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.buttonFavoritos}
+        onPress={() => navigation.navigate('MeusPontos')}
+        activeOpacity={0.9}
+        accessibilityRole="button"
+      >
+        <Text style={styles.buttonFavoritosText}>Meus pontos</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.buttonHistorico}
@@ -262,42 +381,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#5A6B82',
   },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    marginBottom: 14,
-    minHeight: 44,
-    justifyContent: 'center',
+  inputBusca: {
+    minHeight: 46,
+    marginTop: 14,
+    paddingHorizontal: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#EDEFF3',
-    boxShadow: '0px 4px 12px rgba(26, 43, 76, 0.08)',
-    elevation: 3,
-  },
-  cardHeader: {
-    marginBottom: 8,
-  },
-  cardBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#E8F5EE',
-    color: '#1F7A58',
-    fontSize: 10,
-    fontWeight: '700',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  nome: {
-    fontSize: 16,
-    fontWeight: '700',
+    borderColor: '#D9E2EC',
+    backgroundColor: '#F8FAFD',
     color: '#1A2B4C',
-    marginBottom: 6,
-  },
-  endereco: {
-    fontSize: 13,
-    color: '#5A6B82',
-    lineHeight: 18,
+    fontSize: 15,
   },
   estado: {
     alignItems: 'center',
@@ -354,6 +447,40 @@ const styles = StyleSheet.create({
     minHeight: 48,
     borderWidth: 1,
     borderColor: '#D9E2EC',
+  },
+  buttonNovoPonto: {
+    backgroundColor: '#E8F5EE',
+    borderRadius: 14,
+    paddingVertical: 15,
+    marginHorizontal: 20,
+    marginBottom: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: '#B9DEC9',
+  },
+  buttonNovoPontoText: {
+    color: '#1F7A58',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  buttonFavoritos: {
+    backgroundColor: '#FFF8E7',
+    borderRadius: 14,
+    paddingVertical: 15,
+    marginHorizontal: 20,
+    marginBottom: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: '#F0D99A',
+  },
+  buttonFavoritosText: {
+    color: '#805B00',
+    fontSize: 16,
+    fontWeight: '700',
   },
   buttonHistoricoText: {
     color: '#1A2B4C',

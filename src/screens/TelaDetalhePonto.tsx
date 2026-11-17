@@ -1,14 +1,32 @@
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, View, Text, StyleSheet, ScrollView } from 'react-native';
+import { useCallback, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
-import { ApiError } from '../services/api';
 import { pontosService } from '../services/pontosService';
 import type { Ponto } from '../types/ponto';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Detalhe'>;
 
-function DetalhePonto({ ponto }: { ponto: Ponto }) {
+function DetalhePonto({
+  ponto,
+  excluindo,
+  onEditar,
+  onExcluir,
+}: {
+  ponto: Ponto;
+  excluindo: boolean;
+  onEditar: () => void;
+  onExcluir: () => void;
+}) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.nome}>{ponto.nome}</Text>
@@ -27,49 +45,108 @@ function DetalhePonto({ ponto }: { ponto: Ponto }) {
         <Text style={styles.rotulo}>🤝 Recebe / Distribui</Text>
         <Text style={styles.texto}>{ponto.recebeDistribui}</Text>
       </View>
+
+      <TouchableOpacity
+        style={styles.botaoEditar}
+        onPress={onEditar}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+      >
+        <Text style={styles.textoBotaoEditar}>Editar ponto</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.botaoExcluir, excluindo && styles.botaoDesabilitado]}
+        onPress={onExcluir}
+        disabled={excluindo}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+      >
+        {excluindo ? (
+          <ActivityIndicator color="#FFFFFF" />
+        ) : (
+          <Text style={styles.textoBotaoExcluir}>Excluir ponto</Text>
+        )}
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
-export default function TelaDetalhePonto({ route }: Props) {
-  const { pontoId } = route.params;
+export default function TelaDetalhePonto({ route, navigation }: Props) {
+  const { id } = route.params;
   const [ponto, setPonto] = useState<Ponto | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [mensagemErro, setMensagemErro] = useState('');
+  const [excluindo, setExcluindo] = useState(false);
 
-  useEffect(() => {
-    let telaAtiva = true;
+  useFocusEffect(
+    useCallback(() => {
+      let telaAtiva = true;
 
-    async function carregarPonto() {
-      setCarregando(true);
-      setMensagemErro('');
-      try {
-        const resultado = await pontosService.buscarPorId(pontoId);
-        if (telaAtiva) {
-          setPonto(resultado);
-        }
-      } catch (error) {
-        if (telaAtiva) {
-          if (error instanceof ApiError && error.status === 404) {
-            setMensagemErro('Ponto não encontrado.');
-          } else {
-            setMensagemErro(
-              'Não foi possível carregar este ponto. Verifique a conexão com a API.'
-            );
+      async function carregarPonto() {
+        setCarregando(true);
+        setMensagemErro('');
+        try {
+          const resultado = await pontosService.buscarPorId(id);
+          if (telaAtiva) {
+            setPonto(resultado);
+          }
+        } catch (error) {
+          if (telaAtiva) {
+            if (
+              error instanceof Error &&
+              'status' in error &&
+              error.status === 404
+            ) {
+              setMensagemErro('Ponto não encontrado.');
+            } else {
+              setMensagemErro(
+                'Não foi possível carregar este ponto. Verifique a conexão com a API.'
+              );
+            }
+          }
+        } finally {
+          if (telaAtiva) {
+            setCarregando(false);
           }
         }
-      } finally {
-        if (telaAtiva) {
-          setCarregando(false);
-        }
       }
-    }
 
-    void carregarPonto();
-    return () => {
-      telaAtiva = false;
-    };
-  }, [pontoId]);
+      void carregarPonto();
+      return () => {
+        telaAtiva = false;
+      };
+    }, [id])
+  );
+
+  const excluirPonto = async () => {
+    setExcluindo(true);
+    try {
+      await pontosService.excluir(id);
+      navigation.goBack();
+    } catch {
+      setExcluindo(false);
+      Alert.alert(
+        'Não foi possível excluir',
+        'O ponto não foi removido. Verifique se a API está em execução e tente novamente.'
+      );
+    }
+  };
+
+  const confirmarExclusao = () => {
+    Alert.alert(
+      'Excluir ponto',
+      'Tem certeza de que deseja excluir este ponto de coleta?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: () => void excluirPonto(),
+        },
+      ]
+    );
+  };
 
   if (carregando) {
     return (
@@ -90,7 +167,14 @@ export default function TelaDetalhePonto({ route }: Props) {
     );
   }
 
-  return <DetalhePonto ponto={ponto} />;
+  return (
+    <DetalhePonto
+      ponto={ponto}
+      excluindo={excluindo}
+      onEditar={() => navigation.navigate('FormularioPonto', { id })}
+      onExcluir={confirmarExclusao}
+    />
+  );
 }
 
 const styles = StyleSheet.create({
@@ -143,5 +227,36 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#2C3E50',
     lineHeight: 22,
+  },
+  botaoEditar: {
+    minHeight: 48,
+    backgroundColor: '#1A2B4C',
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    paddingHorizontal: 20,
+  },
+  textoBotaoEditar: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  botaoExcluir: {
+    minHeight: 48,
+    backgroundColor: '#B42318',
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    paddingHorizontal: 20,
+  },
+  botaoDesabilitado: {
+    opacity: 0.7,
+  },
+  textoBotaoExcluir: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

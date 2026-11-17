@@ -1,10 +1,9 @@
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = (
+  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8080'
+).replace(/\/+$/, '');
 
-export class ApiError extends Error {
-  constructor(
-    message: string,
-    public readonly status: number
-  ) {
+class ApiError extends Error {
+  constructor(message: string, public readonly status: number) {
     super(message);
     this.name = 'ApiError';
   }
@@ -44,17 +43,18 @@ async function request<T>(
   return (await response.json()) as T;
 }
 
-export const api = {
-  get<T>(path: string): Promise<T> {
-    return request<T>(path, 'GET');
-  },
-  post<T>(path: string, body: unknown): Promise<T> {
-    return request<T>(path, 'POST', body);
-  },
-  put<T>(path: string, body: unknown): Promise<T> {
-    return request<T>(path, 'PUT', body);
-  },
-  del<T>(path: string): Promise<T> {
-    return request<T>(path, 'DELETE');
-  },
-};
+export function get<T>(path: string): Promise<T> {
+  return request<T>(path, 'GET');
+}
+
+export function post<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, 'POST', body);
+}
+
+export function put<T>(path: string, body: unknown): Promise<T> {
+  return request<T>(path, 'PUT', body);
+}
+
+export function del<T>(path: string): Promise<T> {
+  return request<T>(path, 'DELETE');
+}

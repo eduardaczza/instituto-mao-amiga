@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
@@ -56,7 +58,104 @@ class PontosApiIntegrationTest {
         Map<?, ?> metadata = (Map<?, ?>) response.getBody().get("page");
         assertThat(metadata.get("size")).isEqualTo(3);
         assertThat(metadata.get("number")).isEqualTo(0);
-        assertThat(metadata.get("totalElements")).isEqualTo(10);
+        assertThat(metadata.get("totalElements")).isEqualTo(25);
+    }
+
+    @Test
+    void listaPontosFiltrandoPorNomeSemDiferenciarMaiusculas() {
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                "/pontos?nome=VACA+BRAVA",
+                HttpMethod.GET,
+                null,
+                JSON_MAP
+        );
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        List<?> content = (List<?>) response.getBody().get("content");
+        assertThat(content).hasSize(1);
+        assertThat(((Map<?, ?>) content.get(0)).get("nome"))
+                .isEqualTo("Ponto Parque Vaca Brava");
+        assertThat(((Map<?, ?>) response.getBody().get("page")).get("totalElements"))
+                .isEqualTo(1);
+    }
+
+    @Test
+    void endpointPaginadoUsaDezItensEPermiteOrdenacaoPorBairro() {
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                "/api/v1/pontos/paginado?page=1&sort=bairro,asc",
+                HttpMethod.GET,
+                null,
+                JSON_MAP
+        );
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).containsKeys("content", "page");
+        List<?> content = (List<?>) response.getBody().get("content");
+        assertThat(content).hasSize(10);
+        List<String> campos = ((Map<?, ?>) content.get(0)).keySet().stream()
+                .map(Object::toString)
+                .toList();
+        assertThat(campos).containsAll(List.of("id", "nome", "endereco", "bairro", "horario", "tipo"));
+        Map<?, ?> metadata = (Map<?, ?>) response.getBody().get("page");
+        assertThat(metadata.get("size")).isEqualTo(10);
+        assertThat(metadata.get("number")).isEqualTo(1);
+        assertThat(metadata.get("totalElements")).isEqualTo(25);
+
+        List<String> bairros = content.stream()
+                .map(item -> (Map<?, ?>) item)
+                .map(item -> item.get("bairro").toString())
+                .toList();
+        assertThat(bairros).isSortedAccordingTo(String.CASE_INSENSITIVE_ORDER);
+    }
+
+    @Test
+    void endpointPaginadoFiltraBairroSemDiferenciarMaiusculas() {
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                "/api/v1/pontos/paginado?bairro=SETOR+CENTRAL",
+                HttpMethod.GET,
+                null,
+                JSON_MAP
+        );
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        List<?> content = (List<?>) response.getBody().get("content");
+        assertThat(content).hasSize(4);
+        List<String> bairros = content.stream()
+                .map(item -> (Map<?, ?>) item)
+                .map(item -> item.get("bairro").toString())
+                .toList();
+        assertThat(bairros).containsOnly("Setor Central");
+        Map<?, ?> metadata = (Map<?, ?>) response.getBody().get("page");
+        assertThat(metadata.get("totalElements")).isEqualTo(4);
+    }
+
+    @Test
+    void endpointPaginadoFiltraNomeSemDiferenciarMaiusculas() {
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                "/api/v1/pontos/paginado?nome=VACA+BRAVA",
+                HttpMethod.GET,
+                null,
+                JSON_MAP
+        );
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        List<?> content = (List<?>) response.getBody().get("content");
+        assertThat(content).hasSize(1);
+        assertThat(((Map<?, ?>) content.get(0)).get("nome")).isEqualTo("Ponto Parque Vaca Brava");
+        assertThat(((Map<?, ?>) response.getBody().get("page")).get("totalElements")).isEqualTo(1);
+    }
+
+    @Test
+    void endpointPaginadoIgnoraFiltrosVazios() {
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                "/api/v1/pontos/paginado?nome=+&bairro=",
+                HttpMethod.GET,
+                null,
+                JSON_MAP
+        );
+
+        assertThat(((Map<?, ?>) response.getBody().get("page")).get("totalElements")).isEqualTo(25);
+        assertThat(((List<?>) response.getBody().get("content"))).hasSize(10);
     }
 
     @Test
@@ -86,5 +185,158 @@ class PontosApiIntegrationTest {
         );
 
         assertThat(response.getStatusCode().value()).isEqualTo(404);
+    }
+
+    @Test
+    void crudDePontoCriaConsultaAtualizaEExclui() {
+        Map<String, String> novoPonto = Map.of(
+                "nome", "Ponto de teste",
+                "endereco", "Rua de teste, 100",
+                "bairro", "Setor de teste",
+                "horario", "Segunda a sexta, 8h às 17h",
+                "tipo", "coleta"
+        );
+
+        ResponseEntity<Map<String, Object>> criado = restTemplate.exchange(
+                "/api/v1/pontos",
+                HttpMethod.POST,
+                jsonRequest(novoPonto),
+                JSON_MAP
+        );
+
+        assertThat(criado.getStatusCode().value()).isEqualTo(201);
+        assertThat(criado.getBody()).containsKeys(
+                "id", "nome", "endereco", "bairro", "horario", "tipo"
+        );
+        String id = criado.getBody().get("id").toString();
+
+        ResponseEntity<Map<String, Object>> consultado = restTemplate.exchange(
+                "/api/v1/pontos/" + id,
+                HttpMethod.GET,
+                null,
+                JSON_MAP
+        );
+        assertThat(consultado.getStatusCode().value()).isEqualTo(200);
+        assertThat(consultado.getBody().get("nome")).isEqualTo("Ponto de teste");
+
+        Map<String, String> atualizado = Map.of(
+                "nome", "Ponto atualizado",
+                "endereco", "Rua atualizada, 200",
+                "bairro", "Novo setor",
+                "horario", "Sábado, 9h às 13h",
+                "tipo", "distribuição"
+        );
+        ResponseEntity<Map<String, Object>> respostaAtualizacao = restTemplate.exchange(
+                "/api/v1/pontos/" + id,
+                HttpMethod.PUT,
+                jsonRequest(atualizado),
+                JSON_MAP
+        );
+        assertThat(respostaAtualizacao.getStatusCode().value()).isEqualTo(200);
+        assertThat(respostaAtualizacao.getBody().get("nome")).isEqualTo("Ponto atualizado");
+        assertThat(respostaAtualizacao.getBody().get("tipo")).isEqualTo("distribuição");
+
+        ResponseEntity<Void> removido = restTemplate.exchange(
+                "/api/v1/pontos/" + id,
+                HttpMethod.DELETE,
+                null,
+                Void.class
+        );
+        assertThat(removido.getStatusCode().value()).isEqualTo(204);
+        assertThat(restTemplate.getForEntity(
+                "/api/v1/pontos/" + id,
+                String.class
+        ).getStatusCode().value()).isEqualTo(404);
+    }
+
+    @Test
+    void camposVaziosRespondem400SemGravarOuAlterarDados() {
+        Map<String, String> invalido = Map.of(
+                "nome", " ",
+                "endereco", "Rua de teste, 100",
+                "bairro", "Setor de teste",
+                "horario", "Segunda a sexta",
+                "tipo", "coleta"
+        );
+        long totalAntes = totalPontos();
+
+        ResponseEntity<String> criacao = restTemplate.postForEntity(
+                "/api/v1/pontos",
+                jsonRequest(invalido),
+                String.class
+        );
+
+        assertThat(criacao.getStatusCode().value()).isEqualTo(400);
+        assertThat(totalPontos()).isEqualTo(totalAntes);
+
+        Map<String, String> valido = Map.of(
+                "nome", "Ponto que deve permanecer",
+                "endereco", "Rua de teste, 100",
+                "bairro", "Setor de teste",
+                "horario", "Segunda a sexta",
+                "tipo", "coleta"
+        );
+        ResponseEntity<Map<String, Object>> criado = restTemplate.exchange(
+                "/api/v1/pontos",
+                HttpMethod.POST,
+                jsonRequest(valido),
+                JSON_MAP
+        );
+        String id = criado.getBody().get("id").toString();
+
+        ResponseEntity<String> atualizacao = restTemplate.exchange(
+                "/api/v1/pontos/" + id,
+                HttpMethod.PUT,
+                jsonRequest(invalido),
+                String.class
+        );
+
+        assertThat(atualizacao.getStatusCode().value()).isEqualTo(400);
+        ResponseEntity<Map<String, Object>> pontoSemAlteracao = restTemplate.exchange(
+                "/api/v1/pontos/" + id,
+                HttpMethod.GET,
+                null,
+                JSON_MAP
+        );
+        assertThat(pontoSemAlteracao.getBody().get("nome"))
+                .isEqualTo("Ponto que deve permanecer");
+        restTemplate.delete("/api/v1/pontos/" + id);
+    }
+
+    @Test
+    void putDePontoInexistenteResponde404() {
+        Map<String, String> valido = Map.of(
+                "nome", "Ponto",
+                "endereco", "Rua de teste, 100",
+                "bairro", "Setor de teste",
+                "horario", "Segunda a sexta",
+                "tipo", "coleta"
+        );
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/pontos/00000000-0000-0000-0000-000000000000",
+                HttpMethod.PUT,
+                jsonRequest(valido),
+                String.class
+        );
+
+        assertThat(response.getStatusCode().value()).isEqualTo(404);
+    }
+
+    private HttpEntity<Map<String, String>> jsonRequest(Map<String, String> body) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Content-Type", "application/json");
+        return new HttpEntity<>(body, headers);
+    }
+
+    private long totalPontos() {
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                "/pontos?size=50",
+                HttpMethod.GET,
+                null,
+                JSON_MAP
+        );
+        return ((Number) ((Map<?, ?>) response.getBody().get("page"))
+                .get("totalElements")).longValue();
     }
 }
