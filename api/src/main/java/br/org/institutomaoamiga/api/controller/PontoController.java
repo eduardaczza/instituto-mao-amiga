@@ -1,6 +1,6 @@
 package br.org.institutomaoamiga.api.controller;
 
-import br.org.institutomaoamiga.api.dto.PontoResponseDTO;
+import br.org.institutomaoamiga.api.dto.PontoAppResponseDTO;
 import br.org.institutomaoamiga.api.service.PontoService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,14 +24,14 @@ public class PontoController {
     }
 
     @GetMapping
-    public Page<PontoResponseDTO> listar(
+    public Page<PontoAppResponseDTO> listar(
             @PageableDefault(size = 20, sort = "nome") Pageable pageable
     ) {
         return pontoService.listar(pageable);
     }
 
     @GetMapping("/{id}")
-    public PontoResponseDTO buscarPorId(@PathVariable UUID id) {
+    public PontoAppResponseDTO buscarPorId(@PathVariable UUID id) {
         return pontoService.buscarPorId(id);
     }
 }

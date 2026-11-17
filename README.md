@@ -26,16 +26,62 @@ O servidor fica disponível em `http://localhost:8080`. A primeira inicializaç�
 | --- | --- | --- |
 | `GET` | `/pontos` | Lista pontos paginados. Aceita `page`, `size` e `sort`; padrão de 20 itens, máximo de 50. |
 | `GET` | `/pontos/{id}` | Consulta um ponto pelo UUID; responde 404 quando não existe. |
+| `GET` | `/api/v1/pontos` | Lista todos os pontos para o CRUD da N2-1. |
+| `GET` | `/api/v1/pontos/{id}` | Consulta um ponto pelo UUID; responde 404 quando não existe. |
+| `POST` | `/api/v1/pontos` | Cadastra um ponto; responde 201 ou 400 para dados inválidos. |
+| `PUT` | `/api/v1/pontos/{id}` | Atualiza um ponto; responde 404 se não existir ou 400 para dados inválidos. |
+| `DELETE` | `/api/v1/pontos/{id}` | Exclui um ponto; responde 204 quando concluído. |
 
-Exemplos:
+Os endpoints `/api/v1/pontos` recebem `nome`, `endereco`, `bairro`, `horario` e `tipo`; `tipo` deve ser `coleta` ou `distribuição`. O ID é gerado pela API.
 
 ```text
 GET http://localhost:8080/pontos
 GET http://localhost:8080/pontos?page=0&size=5&sort=nome,asc
 GET http://localhost:8080/pontos/00000000-0000-0000-0000-000000000000
+GET http://localhost:8080/api/v1/pontos
+GET http://localhost:8080/api/v1/pontos/{id}
+POST http://localhost:8080/api/v1/pontos
+PUT http://localhost:8080/api/v1/pontos/{id}
+DELETE http://localhost:8080/api/v1/pontos/{id}
 ```
 
-A resposta da lista usa `content` e metadados de paginação em `page`. A documentação interativa está em [Swagger UI](http://localhost:8080/swagger-ui/index.html). O console H2, destinado ao desenvolvimento local, fica em [H2 Console](http://localhost:8080/h2-console); use JDBC URL `jdbc:h2:file:./data/instituto-mao-amiga`, usuário `sa` e senha vazia.
+Corpo de exemplo para `POST` e `PUT`:
+
+```json
+{
+  "nome": "Ponto Centro",
+  "endereco": "Praça Cívica, Goiânia - GO",
+  "bairro": "Setor Central",
+  "horario": "Segunda a sexta, 8h às 17h",
+  "tipo": "coleta"
+}
+```
+
+A resposta de `GET /pontos` usa `content` e metadados de paginação em `page`. A documentação interativa de todos os endpoints está em [Swagger UI](http://localhost:8080/swagger-ui/index.html). Para demonstrar uma validação 400, envie `nome` vazio no corpo acima; para demonstrar 404, consulte ou atualize um UUID inexistente, como `00000000-0000-0000-0000-000000000000`. O console H2, destinado ao desenvolvimento local, fica em [H2 Console](http://localhost:8080/h2-console); use JDBC URL `jdbc:h2:file:./data/instituto-mao-amiga`, usuário `sa` e senha vazia.
+
+### Swagger: endpoints do CRUD da N2-1
+
+Capturas da documentação Swagger gerada pela API. As respostas 400 e 404 estão documentadas nas operações que validam o corpo e consultam/atualizam IDs:
+
+**GET `/api/v1/pontos`**
+
+![Swagger GET pontos](./docs/swagger/n2-1-get-pontos.png)
+
+**POST `/api/v1/pontos` — inclui resposta 400**
+
+![Swagger POST pontos](./docs/swagger/n2-1-post-pontos.png)
+
+**GET `/api/v1/pontos/{id}` — inclui resposta 404**
+
+![Swagger GET ponto por ID](./docs/swagger/n2-1-get-ponto-id.png)
+
+**PUT `/api/v1/pontos/{id}` — inclui respostas 400 e 404**
+
+![Swagger PUT ponto por ID](./docs/swagger/n2-1-put-ponto-id.png)
+
+**DELETE `/api/v1/pontos/{id}`**
+
+![Swagger DELETE ponto por ID](./docs/swagger/n2-1-delete-ponto-id.png)
 
 As coordenadas dos exemplos correspondem a locais mapeados em Goiânia. Fonte cartográfica: OpenStreetMap, consultada pelo geocodificador Photon; © OpenStreetMap contributors.
 
