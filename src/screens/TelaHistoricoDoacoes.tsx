@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { doacoesStorage } from '../services/doacoesStorage';
+import { doacoesService } from '../services/doacoesService';
 import type { RootStackParamList } from '../navigation/types';
 import type { Doacao } from '../types/doacao';
 
@@ -23,6 +23,7 @@ type TotalPorTipo = {
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Historico'>;
+const TAMANHO_PAGINA = 10;
 
 const DoacaoItem = React.memo(function DoacaoItem({
   doacao,
@@ -62,47 +63,140 @@ const DoacaoItem = React.memo(function DoacaoItem({
 export default function TelaHistoricoDoacoes({ navigation }: Props) {
   const [doacoes, setDoacoes] = useState<Doacao[]>([]);
   const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState(false);
+  const [carregandoMais, setCarregandoMais] = useState(false);
+  const [erro, setErro] = useState('');
+  const [erroMais, setErroMais] = useState('');
+  const [totalDoacoes, setTotalDoacoes] = useState(0);
   const [tentativa, setTentativa] = useState(0);
   const [buscaTipoItem, setBuscaTipoItem] = useState('');
   const [campoBuscaFocado, setCampoBuscaFocado] = useState(false);
+  const sequenciaRequisicao = useRef(0);
+  const paginaAtual = useRef(-1);
+  const totalPaginas = useRef(0);
+  const filtroAplicado = useRef('');
+  const carregandoRef = useRef(true);
+  const erroMaisRef = useRef(false);
+  const paginaEmAndamento = useRef<{ sequencia: number; pagina: number } | null>(
+    null
+  );
+
+  const carregarPrimeiraPagina = useCallback(async (filtro: string) => {
+    const sequencia = ++sequenciaRequisicao.current;
+    paginaAtual.current = -1;
+    totalPaginas.current = 0;
+    paginaEmAndamento.current = null;
+    erroMaisRef.current = false;
+    carregandoRef.current = true;
+    setDoacoes([]);
+    setTotalDoacoes(0);
+    setErro('');
+    setErroMais('');
+    setCarregando(true);
+    setCarregandoMais(false);
+
+    try {
+      const resposta = await doacoesService.listarPagina(
+        filtro,
+        0,
+        TAMANHO_PAGINA
+      );
+      if (sequencia === sequenciaRequisicao.current) {
+        setDoacoes(resposta.content);
+        setTotalDoacoes(resposta.page.totalElements);
+        paginaAtual.current = resposta.page.number;
+        totalPaginas.current = resposta.page.totalPages;
+      }
+    } catch {
+      if (sequencia === sequenciaRequisicao.current) {
+        setErro(
+          'Não foi possível carregar o histórico. Verifique se a API está em execução e tente novamente.'
+        );
+      }
+    } finally {
+      if (sequencia === sequenciaRequisicao.current) {
+        carregandoRef.current = false;
+        setCarregando(false);
+      }
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      let telaAtiva = true;
-
-      async function carregarDoacoes() {
-        setCarregando(true);
-        setErro(false);
-
-        try {
-          const lista = await doacoesStorage.listarDoacoes();
-          if (telaAtiva) {
-            setDoacoes(lista);
-          }
-        } catch {
-          if (telaAtiva) {
-            setErro(true);
-          }
-        } finally {
-          if (telaAtiva) {
-            setCarregando(false);
-          }
-        }
-      }
-
-      carregarDoacoes();
-      return () => {
-        telaAtiva = false;
-      };
-    }, [tentativa])
+      void carregarPrimeiraPagina(filtroAplicado.current);
+    }, [carregarPrimeiraPagina, tentativa])
   );
+
+  useEffect(() => {
+    const filtro = buscaTipoItem.trim();
+    if (filtro === filtroAplicado.current) {
+      return;
+    }
+
+    const temporizador = setTimeout(() => {
+      filtroAplicado.current = filtro;
+      void carregarPrimeiraPagina(filtro);
+    }, 350);
+
+    return () => clearTimeout(temporizador);
+  }, [buscaTipoItem, carregarPrimeiraPagina]);
+
+  const carregarProximaPagina = async () => {
+    const sequencia = sequenciaRequisicao.current;
+    const proximaPagina = paginaAtual.current + 1;
+    const paginaSolicitada = paginaEmAndamento.current;
+    if (
+      carregandoRef.current ||
+      erroMaisRef.current ||
+      (paginaSolicitada?.sequencia === sequencia &&
+        paginaSolicitada.pagina === proximaPagina) ||
+      proximaPagina >= totalPaginas.current
+    ) {
+      return;
+    }
+
+    paginaEmAndamento.current = { sequencia, pagina: proximaPagina };
+    setCarregandoMais(true);
+    try {
+      const resposta = await doacoesService.listarPagina(
+        filtroAplicado.current,
+        proximaPagina,
+        TAMANHO_PAGINA
+      );
+      if (sequencia === sequenciaRequisicao.current) {
+        setDoacoes((atuais) => {
+          const idsExistentes = new Set(atuais.map((doacao) => doacao.id));
+          return [
+            ...atuais,
+            ...resposta.content.filter(
+              (doacao) => !idsExistentes.has(doacao.id)
+            ),
+          ];
+        });
+        setTotalDoacoes(resposta.page.totalElements);
+        paginaAtual.current = resposta.page.number;
+        totalPaginas.current = resposta.page.totalPages;
+        setErroMais('');
+      }
+    } catch {
+      if (sequencia === sequenciaRequisicao.current) {
+        erroMaisRef.current = true;
+        setErroMais('Não foi possível carregar mais doações.');
+      }
+    } finally {
+      if (sequencia === sequenciaRequisicao.current) {
+        paginaEmAndamento.current = null;
+        setCarregandoMais(false);
+      }
+    }
+  };
+
+  const tentarCarregarMais = () => {
+    erroMaisRef.current = false;
+    setErroMais('');
+    void carregarProximaPagina();
+  };
 
   const cadastrarDoacao = () => navigation.navigate('Cadastro');
-  const termoBusca = buscaTipoItem.trim().toLocaleLowerCase('pt-BR');
-  const doacoesFiltradas = doacoes.filter((doacao) =>
-    doacao.tipoItem.toLocaleLowerCase('pt-BR').includes(termoBusca)
-  );
   const totaisPorTipo = Object.values(
     doacoes.reduce<Record<string, TotalPorTipo>>((totais, doacao) => {
       const chave = doacao.tipoItem.trim().toLocaleLowerCase('pt-BR');
@@ -133,10 +227,12 @@ export default function TelaHistoricoDoacoes({ navigation }: Props) {
         style={styles.container}
         contentContainerStyle={[
           styles.conteudo,
-          doacoesFiltradas.length === 0 && styles.conteudoVazio,
+          doacoes.length === 0 && styles.conteudoVazio,
         ]}
-        data={doacoesFiltradas}
+        data={doacoes}
         keyExtractor={(item) => item.id}
+        onEndReached={() => void carregarProximaPagina()}
+        onEndReachedThreshold={0.4}
         renderItem={({ item }) => (
           <DoacaoItem
             doacao={item}
@@ -162,17 +258,19 @@ export default function TelaHistoricoDoacoes({ navigation }: Props) {
                 <Text style={styles.textoResumo}>Carregando totais...</Text>
               ) : erro ? (
                 <Text style={styles.textoResumoErro}>
-                  Não foi possível carregar o resumo.
+                  Resumo indisponível enquanto a API não responder.
                 </Text>
-              ) : doacoes.length === 0 ? (
+              ) : totalDoacoes === 0 ? (
                 <Text style={styles.textoResumo}>
                   Nenhuma doação registrada para resumir.
                 </Text>
               ) : (
                 <>
                   <Text style={styles.totalDoacoes}>
-                    Total: {doacoes.length}{' '}
-                    {doacoes.length === 1 ? 'doação' : 'doações'}
+                    {doacoes.length} de {totalDoacoes} doações carregadas
+                  </Text>
+                  <Text style={styles.textoResumo}>
+                    Totais por tipo consideram apenas os itens carregados.
                   </Text>
                   {totaisPorTipo.map((total) => (
                     <Text
@@ -218,6 +316,27 @@ export default function TelaHistoricoDoacoes({ navigation }: Props) {
             </View>
           </View>
         }
+        ListFooterComponent={
+          carregandoMais ? (
+            <ActivityIndicator
+              style={styles.indicador}
+              size="small"
+              color="#1A2B4C"
+            />
+          ) : erroMais ? (
+            <View style={styles.estadoRodape}>
+              <Text style={styles.textoResumoErro}>{erroMais}</Text>
+              <TouchableOpacity
+                style={styles.botao}
+                onPress={tentarCarregarMais}
+                activeOpacity={0.9}
+                accessibilityRole="button"
+              >
+                <Text style={styles.textoBotao}>Tentar novamente</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           <View style={styles.estadoVazio}>
             {carregando ? (
@@ -228,7 +347,7 @@ export default function TelaHistoricoDoacoes({ navigation }: Props) {
             ) : erro ? (
               <>
                 <Text style={styles.mensagemErro}>
-                  Não foi possível carregar suas doações.
+                  {erro}
                 </Text>
                 <TouchableOpacity
                   style={styles.botao}
@@ -239,7 +358,7 @@ export default function TelaHistoricoDoacoes({ navigation }: Props) {
                   <Text style={styles.textoBotao}>Tentar novamente</Text>
                 </TouchableOpacity>
               </>
-            ) : termoBusca ? (
+            ) : buscaTipoItem.trim() ? (
               <Text style={styles.mensagem}>
                 Nenhuma doação encontrada para “{buscaTipoItem.trim()}”.
               </Text>
@@ -405,6 +524,13 @@ const styles = StyleSheet.create({
     color: '#5A6B82',
     textAlign: 'center',
     marginBottom: 18,
+  },
+  indicador: {
+    paddingVertical: 16,
+  },
+  estadoRodape: {
+    alignItems: 'center',
+    paddingVertical: 18,
   },
   botao: {
     backgroundColor: '#1A2B4C',

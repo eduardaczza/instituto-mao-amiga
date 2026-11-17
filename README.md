@@ -1,6 +1,6 @@
 # Instituto Mão Amiga
 
-Aplicativo em React Native, Expo e TypeScript para consultar pontos de coleta e registrar doações. A API Spring Boot deste repositório fornece os pontos e oferece endpoints CRUD para doações; no aplicativo, os registros de doação continuam salvos localmente no aparelho.
+Aplicativo em React Native, Expo e TypeScript para consultar pontos de coleta e registrar doações. O app e a API Spring Boot deste repositório comunicam-se pela API REST para consultar pontos e gerenciar doações.
 
 ## Requisitos
 

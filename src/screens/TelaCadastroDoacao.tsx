@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   View,
   Text,
   TextInput,
@@ -12,15 +13,22 @@ import {
   Platform,
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { doacoesStorage } from '../services/doacoesStorage';
+import { doacoesService } from '../services/doacoesService';
 import type { RootStackParamList } from '../navigation/types';
 import { pontosService } from '../services/pontosService';
+import type { PontoCrud } from '../services/pontosService';
 import type { NovaDoacao } from '../types/doacao';
-import type { Ponto } from '../types/ponto';
 
 type Props =
   | NativeStackScreenProps<RootStackParamList, 'Cadastro'>
   | NativeStackScreenProps<RootStackParamList, 'EditarDoacao'>;
+
+function statusDoErro(error: unknown): number | undefined {
+  if (error instanceof Error && 'status' in error) {
+    return typeof error.status === 'number' ? error.status : undefined;
+  }
+  return undefined;
+}
 
 export default function TelaCadastroDoacao({ navigation, route }: Props) {
   const doacaoEmEdicao =
@@ -34,14 +42,52 @@ export default function TelaCadastroDoacao({ navigation, route }: Props) {
     doacaoEmEdicao?.pontoDestino ?? ''
   );
   const [erroQuantidade, setErroQuantidade] = useState('');
+  const [carregandoDoacao, setCarregandoDoacao] = useState(modoEdicao);
   const [seletorPontosVisivel, setSeletorPontosVisivel] = useState(false);
   const [feedbackVisivel, setFeedbackVisivel] = useState(false);
   const [cadastroSalvo, setCadastroSalvo] = useState(false);
   const [salvando, setSalvando] = useState(false);
-  const [pontos, setPontos] = useState<Ponto[]>([]);
+  const [pontos, setPontos] = useState<PontoCrud[]>([]);
   const [carregandoPontos, setCarregandoPontos] = useState(false);
   const [erroPontos, setErroPontos] = useState('');
   const [tentativaPontos, setTentativaPontos] = useState(0);
+
+  useEffect(() => {
+    if (!doacaoEmEdicao) {
+      return;
+    }
+
+    const doacaoId = doacaoEmEdicao.id;
+    let telaAtiva = true;
+    setCarregandoDoacao(true);
+
+    async function carregarDoacao() {
+      try {
+        const doacao = await doacoesService.buscarPorId(doacaoId);
+        if (telaAtiva) {
+          setTipoItem(doacao.tipoItem);
+          setQuantidade(String(doacao.quantidade));
+          setPontoDestino(doacao.pontoDestino);
+        }
+      } catch {
+        if (telaAtiva) {
+          Alert.alert(
+            'Não foi possível atualizar a doação',
+            'Os dados já carregados foram mantidos. Verifique a conexão com a API.'
+          );
+        }
+      } finally {
+        if (telaAtiva) {
+          setCarregandoDoacao(false);
+        }
+      }
+    }
+
+    void carregarDoacao();
+    return () => {
+      telaAtiva = false;
+    };
+  }, [doacaoEmEdicao?.id]);
 
   useEffect(() => {
     if (!seletorPontosVisivel) {
@@ -54,9 +100,9 @@ export default function TelaCadastroDoacao({ navigation, route }: Props) {
 
     async function carregarPontos() {
       try {
-        const resposta = await pontosService.listar(0, 50);
+        const resposta = await pontosService.listarTodos();
         if (telaAtiva) {
-          setPontos(resposta.content);
+          setPontos(resposta);
         }
       } catch {
         if (telaAtiva) {
@@ -80,14 +126,19 @@ export default function TelaCadastroDoacao({ navigation, route }: Props) {
   const validarFormulario = () => {
     const tipoValido = tipoItem.trim().length > 0;
     const pontoValido = pontoDestino.trim().length > 0;
-    const quantidadeValida = /^\d+$/.test(quantidade.trim());
+    const quantidadeValida =
+      /^\d+$/.test(quantidade.trim()) && Number(quantidade.trim()) > 0;
 
-    if (!tipoValido || !pontoValido || !quantidadeValida) {
-      if (!quantidadeValida) {
-        setErroQuantidade('Digite apenas números na quantidade.');
-      } else {
-        setErroQuantidade('');
-      }
+    if (!tipoValido || !pontoValido) {
+      Alert.alert(
+        'Campos obrigatórios',
+        'Informe o tipo do item e selecione um ponto de destino.'
+      );
+      return false;
+    }
+
+    if (!quantidadeValida) {
+      setErroQuantidade('Digite uma quantidade inteira maior que zero.');
       return false;
     }
 
@@ -105,23 +156,31 @@ export default function TelaCadastroDoacao({ navigation, route }: Props) {
     setSalvando(true);
     try {
       if (doacaoEmEdicao) {
-        await doacoesStorage.atualizarDoacao({
-          ...doacaoEmEdicao,
-          ...doacao,
-        });
+        await doacoesService.editar(doacaoEmEdicao.id, doacao);
       } else {
-        await doacoesStorage.salvarDoacao(doacao);
+        await doacoesService.cadastrar(doacao);
       }
-    } catch {
-      setCadastroSalvo(false);
-      setFeedbackVisivel(true);
-      setSalvando(false);
+    } catch (error) {
+      const status = statusDoErro(error);
+      Alert.alert(
+        status === 400
+          ? 'Dados inválidos'
+          : status === 0
+            ? 'API indisponível'
+            : 'Não foi possível salvar',
+        status === 400
+          ? 'A API recusou os dados. Confira os campos e tente novamente.'
+          : status === 0
+            ? 'Não foi possível conectar à API. Verifique a conexão e tente novamente.'
+            : 'Ocorreu um erro ao salvar a doação. Tente novamente.'
+      );
       return;
+    } finally {
+      setSalvando(false);
     }
 
     setCadastroSalvo(true);
     setFeedbackVisivel(true);
-    setSalvando(false);
   };
 
   const handleEnviar = () => {
@@ -178,8 +237,13 @@ export default function TelaCadastroDoacao({ navigation, route }: Props) {
               value={quantidade}
               onChangeText={(texto) => {
                 setQuantidade(texto);
-                if (texto.trim() && !/^\d+$/.test(texto.trim())) {
-                  setErroQuantidade('Digite apenas números na quantidade.');
+                if (
+                  texto.trim() &&
+                  (!/^\d+$/.test(texto.trim()) || Number(texto.trim()) <= 0)
+                ) {
+                  setErroQuantidade(
+                    'Digite uma quantidade inteira maior que zero.'
+                  );
                 } else {
                   setErroQuantidade('');
                 }
@@ -216,7 +280,7 @@ export default function TelaCadastroDoacao({ navigation, route }: Props) {
         <TouchableOpacity
           style={styles.button}
           onPress={handleEnviar}
-          disabled={salvando}
+          disabled={salvando || carregandoDoacao}
           activeOpacity={0.9}
         >
           {salvando ? (

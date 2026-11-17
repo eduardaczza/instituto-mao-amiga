@@ -10,9 +10,8 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { doacoesStorage } from '../services/doacoesStorage';
+import { doacoesService } from '../services/doacoesService';
 import type { RootStackParamList } from '../navigation/types';
-import type { Doacao } from '../types/doacao';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DetalheDoacao'>;
 
@@ -38,14 +37,11 @@ export default function TelaDetalheDoacao({ route, navigation }: Props) {
       let telaAtiva = true;
 
       async function atualizarDoacao() {
+        setErroCarregamento(false);
         try {
-          const doacoes = await doacoesStorage.listarDoacoes();
-          const doacaoAtualizada = doacoes.find(
-            (item: Doacao) => item.id === doacao.id
-          );
-          if (telaAtiva && doacaoAtualizada) {
+          const doacaoAtualizada = await doacoesService.buscarPorId(doacao.id);
+          if (telaAtiva) {
             setDoacao(doacaoAtualizada);
-            setErroCarregamento(false);
           }
         } catch {
           if (telaAtiva) {
@@ -73,7 +69,7 @@ export default function TelaDetalheDoacao({ route, navigation }: Props) {
 
     setExcluindo(true);
     try {
-      await doacoesStorage.excluirDoacao(doacao.id);
+      await doacoesService.excluir(doacao.id);
       setConfirmacaoVisivel(false);
       navigation.goBack();
     } catch {
