@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
@@ -25,9 +26,12 @@ public class PontoController {
 
     @GetMapping
     public Page<PontoAppResponseDTO> listar(
+            @RequestParam(required = false) String nome,
             @PageableDefault(size = 20, sort = "nome") Pageable pageable
     ) {
-        return pontoService.listar(pageable);
+        return nome == null || nome.isBlank()
+                ? pontoService.listar(pageable)
+                : pontoService.buscarPorNome(nome, pageable);
     }
 
     @GetMapping("/{id}")

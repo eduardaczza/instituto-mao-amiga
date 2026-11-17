@@ -62,6 +62,24 @@ class PontosApiIntegrationTest {
     }
 
     @Test
+    void listaPontosFiltrandoPorNomeSemDiferenciarMaiusculas() {
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                "/pontos?nome=VACA+BRAVA",
+                HttpMethod.GET,
+                null,
+                JSON_MAP
+        );
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        List<?> content = (List<?>) response.getBody().get("content");
+        assertThat(content).hasSize(1);
+        assertThat(((Map<?, ?>) content.get(0)).get("nome"))
+                .isEqualTo("Ponto Parque Vaca Brava");
+        assertThat(((Map<?, ?>) response.getBody().get("page")).get("totalElements"))
+                .isEqualTo(1);
+    }
+
+    @Test
     void endpointPaginadoUsaDezItensEPermiteOrdenacaoPorBairro() {
         ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 "/api/v1/pontos/paginado?page=1&sort=bairro,asc",

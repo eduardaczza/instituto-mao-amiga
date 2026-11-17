@@ -24,7 +24,7 @@ O servidor fica disponível em `http://localhost:8080`. A primeira inicializaç�
 
 | Método | URL | Descrição |
 | --- | --- | --- |
-| `GET` | `/pontos` | Lista pontos paginados. Aceita `page`, `size` e `sort`; padrão de 20 itens, máximo de 50. |
+| `GET` | `/pontos` | Lista pontos paginados. Aceita `page`, `size`, `sort` e filtro opcional `nome`; padrão de 20 itens, máximo de 50. |
 | `GET` | `/pontos/{id}` | Consulta um ponto pelo UUID; responde 404 quando não existe. |
 | `GET` | `/api/v1/pontos` | Lista todos os pontos para o CRUD da N2-1. |
 | `GET` | `/api/v1/pontos/paginado` | Busca pontos paginados por `nome` e/ou `bairro` (case-insensitive); padrão de 10 itens ordenados por nome. |
@@ -149,7 +149,7 @@ npm run ios
 npm run web
 ```
 
-O app consulta a API pelo serviço `src/services/api.ts`. A URL padrão é `http://localhost:8080`, adequada para teste no navegador local. Para testar em um celular físico ou emulador Android, altere `API_BASE_URL` nesse arquivo para o endereço IPv4 do computador na rede Wi-Fi, por exemplo `http://192.168.1.25:8080`. O celular e o computador devem estar na mesma rede, e a porta 8080 precisa estar acessível pelo firewall.
+O app consulta a API pelo serviço `src/services/api.ts`. A URL padrão é `http://localhost:8080`; confirme que a API está acessível no navegador em `http://localhost:8080/pontos`. Para testar em um celular físico ou emulador Android, configure `EXPO_PUBLIC_API_URL` com o endereço IPv4 do computador na rede Wi-Fi, por exemplo `http://192.168.1.25:8080`, e reinicie o Expo. O celular e o computador devem estar na mesma rede, e a porta 8080 precisa estar acessível pelo firewall. Essa variável também pode ser definida em um arquivo `.env.local` na raiz do projeto.
 
 ## Estrutura
 
