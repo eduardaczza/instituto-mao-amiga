@@ -1,6 +1,6 @@
 # Instituto Mão Amiga
 
-Aplicativo em React Native, Expo e TypeScript para consultar pontos de coleta e registrar doações. A API Spring Boot deste repositório fornece os pontos; as doações permanecem salvas localmente no aparelho.
+Aplicativo em React Native, Expo e TypeScript para consultar pontos de coleta e registrar doações. A API Spring Boot deste repositório fornece os pontos e oferece endpoints CRUD para doações; no aplicativo, os registros de doação continuam salvos localmente no aparelho.
 
 ## Requisitos
 
@@ -32,8 +32,29 @@ O servidor fica disponível em `http://localhost:8080`. A primeira inicializaç�
 | `POST` | `/api/v1/pontos` | Cadastra um ponto; responde 201 ou 400 para dados inválidos. |
 | `PUT` | `/api/v1/pontos/{id}` | Atualiza um ponto; responde 404 se não existir ou 400 para dados inválidos. |
 | `DELETE` | `/api/v1/pontos/{id}` | Exclui um ponto; responde 204 quando concluído. |
+| `GET` | `/api/v1/doacoes` | Lista doações paginadas; aceita `tipoItem`, `page` e `size`, ordena por `criadoEm` decrescente. |
+| `GET` | `/api/v1/doacoes/{id}` | Consulta uma doação pelo UUID; responde 404 quando não existe. |
+| `POST` | `/api/v1/doacoes` | Cadastra uma doação; responde 201 ou 400 para dados inválidos. |
+| `PUT` | `/api/v1/doacoes/{id}` | Atualiza uma doação sem alterar a data de criação; responde 404 ou 400. |
+| `DELETE` | `/api/v1/doacoes/{id}` | Exclui uma doação; responde 204 ou 404 quando não existe. |
 
 Os endpoints `/api/v1/pontos` recebem `nome`, `endereco`, `bairro`, `horario` e `tipo`; `tipo` deve ser `coleta` ou `distribuição`. O ID é gerado pela API.
+
+Os endpoints `/api/v1/doacoes` recebem `tipoItem`, `quantidade` (inteiro maior que zero) e `pontoDestino`. A API gera o ID e define `criadoEm` ao cadastrar; atualizações preservam essa data. A listagem usa páginas de 10 itens por padrão e aceita filtro parcial case-insensitive por tipo do item, por exemplo:
+
+```text
+GET http://localhost:8080/api/v1/doacoes?tipoItem=roupas&page=0&size=10
+```
+
+Corpo de exemplo para `POST` e `PUT` de doações:
+
+```json
+{
+  "tipoItem": "roupas",
+  "quantidade": 3,
+  "pontoDestino": "Ponto Centro"
+}
+```
 
 Exemplos de busca paginada (respostas resumidas):
 
@@ -124,6 +145,30 @@ Capturas da documentação Swagger gerada pela API. As respostas 400 e 404 estã
 **DELETE `/api/v1/pontos/{id}`**
 
 ![Swagger DELETE ponto por ID](./docs/swagger/n2-1-delete-ponto-id.png)
+
+### Swagger: endpoints do CRUD de doações
+
+Capturas do Swagger para cada operação. As respostas de validação `400` e de recurso inexistente `404` estão documentadas nas operações correspondentes.
+
+**GET `/api/v1/doacoes` — listagem paginada e filtro**
+
+![Swagger GET doações](./docs/swagger/n2-5-get-doacoes.png)
+
+**GET `/api/v1/doacoes/{id}` — inclui resposta 404**
+
+![Swagger GET doação por ID](./docs/swagger/n2-5-get-doacao-id.png)
+
+**POST `/api/v1/doacoes` — inclui resposta 400**
+
+![Swagger POST doações](./docs/swagger/n2-5-post-doacoes.png)
+
+**PUT `/api/v1/doacoes/{id}` — inclui respostas 400 e 404**
+
+![Swagger PUT doação por ID](./docs/swagger/n2-5-put-doacao-id.png)
+
+**DELETE `/api/v1/doacoes/{id}` — inclui resposta 404**
+
+![Swagger DELETE doação por ID](./docs/swagger/n2-5-delete-doacao-id.png)
 
 As coordenadas dos exemplos correspondem a locais mapeados em Goiânia. Fonte cartográfica: OpenStreetMap, consultada pelo geocodificador Photon; © OpenStreetMap contributors.
 
