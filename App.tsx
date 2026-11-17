@@ -2,6 +2,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import TelaListaPontos from './src/screens/TelaListaPontos';
 import TelaDetalhePonto from './src/screens/TelaDetalhePonto';
+import TelaFormularioPonto from './src/screens/TelaFormularioPonto';
 import TelaFormularioDoacao from './src/screens/TelaCadastroDoacao';
 import TelaHistoricoDoacoes from './src/screens/TelaHistoricoDoacoes';
 import TelaDetalheDoacao from './src/screens/TelaDetalheDoacao';
@@ -22,6 +23,11 @@ export default function App() {
           name="Detalhe"
           component={TelaDetalhePonto}
           options={{ title: 'Detalhe do ponto' }}
+        />
+        <Stack.Screen
+          name="FormularioPonto"
+          component={TelaFormularioPonto}
+          options={{ title: 'Ponto de coleta' }}
         />
         <Stack.Screen
           name="Cadastro"
