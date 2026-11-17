@@ -58,7 +58,86 @@ class PontosApiIntegrationTest {
         Map<?, ?> metadata = (Map<?, ?>) response.getBody().get("page");
         assertThat(metadata.get("size")).isEqualTo(3);
         assertThat(metadata.get("number")).isEqualTo(0);
-        assertThat(metadata.get("totalElements")).isEqualTo(10);
+        assertThat(metadata.get("totalElements")).isEqualTo(25);
+    }
+
+    @Test
+    void endpointPaginadoUsaDezItensEPermiteOrdenacaoPorBairro() {
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                "/api/v1/pontos/paginado?page=1&sort=bairro,asc",
+                HttpMethod.GET,
+                null,
+                JSON_MAP
+        );
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        assertThat(response.getBody()).containsKeys("content", "page");
+        List<?> content = (List<?>) response.getBody().get("content");
+        assertThat(content).hasSize(10);
+        List<String> campos = ((Map<?, ?>) content.get(0)).keySet().stream()
+                .map(Object::toString)
+                .toList();
+        assertThat(campos).containsAll(List.of("id", "nome", "endereco", "bairro", "horario", "tipo"));
+        Map<?, ?> metadata = (Map<?, ?>) response.getBody().get("page");
+        assertThat(metadata.get("size")).isEqualTo(10);
+        assertThat(metadata.get("number")).isEqualTo(1);
+        assertThat(metadata.get("totalElements")).isEqualTo(25);
+
+        List<String> bairros = content.stream()
+                .map(item -> (Map<?, ?>) item)
+                .map(item -> item.get("bairro").toString())
+                .toList();
+        assertThat(bairros).isSortedAccordingTo(String.CASE_INSENSITIVE_ORDER);
+    }
+
+    @Test
+    void endpointPaginadoFiltraBairroSemDiferenciarMaiusculas() {
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                "/api/v1/pontos/paginado?bairro=SETOR+CENTRAL",
+                HttpMethod.GET,
+                null,
+                JSON_MAP
+        );
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        List<?> content = (List<?>) response.getBody().get("content");
+        assertThat(content).hasSize(4);
+        List<String> bairros = content.stream()
+                .map(item -> (Map<?, ?>) item)
+                .map(item -> item.get("bairro").toString())
+                .toList();
+        assertThat(bairros).containsOnly("Setor Central");
+        Map<?, ?> metadata = (Map<?, ?>) response.getBody().get("page");
+        assertThat(metadata.get("totalElements")).isEqualTo(4);
+    }
+
+    @Test
+    void endpointPaginadoFiltraNomeSemDiferenciarMaiusculas() {
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                "/api/v1/pontos/paginado?nome=VACA+BRAVA",
+                HttpMethod.GET,
+                null,
+                JSON_MAP
+        );
+
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+        List<?> content = (List<?>) response.getBody().get("content");
+        assertThat(content).hasSize(1);
+        assertThat(((Map<?, ?>) content.get(0)).get("nome")).isEqualTo("Ponto Parque Vaca Brava");
+        assertThat(((Map<?, ?>) response.getBody().get("page")).get("totalElements")).isEqualTo(1);
+    }
+
+    @Test
+    void endpointPaginadoIgnoraFiltrosVazios() {
+        ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                "/api/v1/pontos/paginado?nome=+&bairro=",
+                HttpMethod.GET,
+                null,
+                JSON_MAP
+        );
+
+        assertThat(((Map<?, ?>) response.getBody().get("page")).get("totalElements")).isEqualTo(25);
+        assertThat(((List<?>) response.getBody().get("content"))).hasSize(10);
     }
 
     @Test

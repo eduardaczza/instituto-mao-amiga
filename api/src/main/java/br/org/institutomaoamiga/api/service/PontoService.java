@@ -27,6 +27,13 @@ public class PontoService {
         return pontoRepository.findAll(pageable).map(this::toResponse);
     }
 
+    public Page<PontoResponseDTO> listarPaginado(String nome, String bairro, Pageable pageable) {
+        String nomeNormalizado = normalizarFiltro(nome);
+        String bairroNormalizado = normalizarFiltro(bairro);
+        return pontoRepository.buscarPaginado(nomeNormalizado, bairroNormalizado, pageable)
+                .map(this::toCrudResponse);
+    }
+
     public PontoAppResponseDTO buscarPorId(UUID id) {
         return toResponse(buscarEntidade(id));
     }
@@ -85,6 +92,10 @@ public class PontoService {
                         HttpStatus.NOT_FOUND,
                         "Ponto não encontrado"
                 ));
+    }
+
+    private String normalizarFiltro(String filtro) {
+        return filtro == null || filtro.isBlank() ? null : filtro.trim();
     }
 
     private PontoAppResponseDTO toResponse(Ponto ponto) {
